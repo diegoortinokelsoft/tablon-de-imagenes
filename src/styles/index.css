@@ -1,0 +1,45 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import './components.css';
+@import 'tailwindcss/utilities';
+
+@layer base {
+  html {
+    @apply font-body text-body text-on-night antialiased;
+  }
+
+  body {
+    @apply min-h-screen bg-night-900 bg-party bg-fixed;
+  }
+
+  /* Patrón de garabatos en blanco al 6 %, fijo al viewport */
+  body::before {
+    content: '';
+    @apply pointer-events-none fixed inset-0 -z-10 opacity-6;
+    background-image: url('/doodles.svg');
+    background-size: 240px 240px;
+  }
+
+  #root {
+    @apply relative isolate min-h-screen;
+  }
+
+  :focus-visible {
+    @apply outline-none ring ring-brand-400 ring-offset-2 ring-offset-transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-name: fade-in !important;
+      animation-iteration-count: 1 !important;
+      transition-timing-function: ease-out !important;
+    }
+
+    .motion-confetti,
+    .motion-beat {
+      @apply hidden;
+    }
+  }
+}

@@ -1,0 +1,111 @@
+/* Clases de componentes de la guía de estilo. Solo usan tokens de tailwind.config.ts. */
+@layer components {
+  /* Títulos */
+  .page-title {
+    @apply font-display text-page-title-sm uppercase sm:text-page-title;
+  }
+
+  .section-title {
+    @apply font-display text-section-title uppercase;
+  }
+
+  /* Botones "de juguete": borde grueso, sombra sólida y se hunden al presionar */
+  .btn {
+    @apply inline-flex h-12 select-none items-center justify-center gap-2 whitespace-nowrap rounded-btn border-3 border-ink px-6 font-body text-body font-extrabold uppercase text-ink shadow-btn transition duration-150 ease-bounce;
+    @apply active:translate-y-1 active:shadow-btn-pressed;
+    @apply disabled:pointer-events-none disabled:translate-y-0 disabled:opacity-45 disabled:shadow-none;
+  }
+
+  .btn-sm {
+    @apply h-10 px-4 text-secondary font-extrabold shadow-btn-sm;
+  }
+
+  .btn-primary {
+    @apply bg-sun hover:brightness-105;
+  }
+
+  .btn-secondary {
+    @apply bg-sky hover:brightness-105;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-on-night hover:brightness-105;
+  }
+
+  .btn-google {
+    @apply bg-surface normal-case hover:bg-surface-alt;
+  }
+
+  .btn-icon {
+    @apply h-10 w-10 px-0 shadow-btn-sm;
+  }
+
+  .btn-icon svg {
+    @apply h-5 w-5;
+  }
+
+  /* Tarjetas */
+  .card {
+    @apply rounded-card border-3 border-ink bg-surface text-ink shadow-card;
+  }
+
+  .card-own {
+    @apply border-dashed border-brand-400;
+  }
+
+  .card-hover {
+    @apply transition duration-200 ease-bounce hover:-translate-y-1;
+  }
+
+  /* Chips y etiquetas */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-label uppercase;
+  }
+
+  .chip-pending {
+    @apply bg-on-night-muted text-ink;
+  }
+
+  .chip-open {
+    @apply bg-sky text-ink;
+  }
+
+  .chip-closed {
+    @apply bg-sun text-ink;
+  }
+
+  .chip-finalized {
+    @apply bg-vote text-ink;
+  }
+
+  .chip-own {
+    @apply bg-brand-600 text-on-night;
+  }
+
+  .chip-tie {
+    @apply bg-sun text-ink;
+  }
+
+  /* Inputs */
+  .input {
+    @apply h-12 w-full rounded-btn border-3 border-ink bg-surface-alt px-4 font-body text-body text-ink placeholder:text-ink-muted;
+  }
+
+  /* Avatares */
+  .avatar {
+    @apply inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border-3 bg-brand-400 text-label text-on-night;
+  }
+
+  .avatar-on-light {
+    @apply border-ink;
+  }
+
+  .avatar-on-night {
+    @apply border-on-night;
+  }
+
+  /* Contador de votos */
+  .vote-pill {
+    @apply inline-flex min-w-12 items-center justify-center rounded-full bg-vote px-3 font-display text-vote-card tabular-nums text-on-night;
+  }
+}
