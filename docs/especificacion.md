@@ -426,7 +426,7 @@ La app tiene un solo tema, oscuro, sin modo claro. Todo texto debe cumplir contr
 | --- | --- |
 | Botón primario | Fondo `sun`, texto `ink` en Nunito 800 y mayúsculas, borde y sombra sólida; alto de 48 px (40 px el chico) |
 | Botón secundario | Igual que el primario, con fondo `sky` |
-| Botón de peligro | Fondo `danger`, texto blanco; siempre abre una confirmación |
+| Botón de peligro | Fondo `danger`, texto `ink` (blanco no cumple AA); siempre abre una confirmación |
 | Botón de ícono | Cuadrado de 40 px con el mismo borde y sombra; ícono de 20 px |
 | Tarjeta de publicación | Fondo `surface`, borde, radio y sombra de tarjeta. Imagen 16:10 con radio de 12 px y 12 px de margen interno. Debajo: título, avatar y nombre, y una fila con el contador y los botones −1 / +1. Al pasar el mouse sube 4 px |
 | Tarjeta propia | Igual, con el chip "TU PUBLICACIÓN" en `brand-600` sobre la imagen y borde punteado en `brand-400` |

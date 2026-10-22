@@ -29,7 +29,8 @@
   }
 
   .btn-danger {
-    @apply bg-danger text-on-night hover:brightness-105;
+    /* Texto en ink (no blanco) para cumplir contraste AA sobre danger */
+    @apply bg-danger hover:brightness-105;
   }
 
   .btn-google {
