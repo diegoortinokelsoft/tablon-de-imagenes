@@ -12,6 +12,8 @@ export const ERROR_MESSAGES = {
   NO_VOTE_TO_REMOVE: 'No tienes votos en esta publicación',
   INVALID_TRANSITION: 'Ese cambio de estado no está permitido',
   INVALID_WINNER: 'El ganador tiene que ser una publicación de esta competencia',
+  INVALID_NAME: 'El nombre debe tener entre 1 y 80 caracteres',
+  ROUND_NOT_ARCHIVED: 'Esa competencia no está en el historial',
   FILE_TOO_LARGE: 'La imagen supera los 5 MB',
   INVALID_FORMAT: 'Formato no admitido: usa JPG, PNG o WEBP',
 } as const

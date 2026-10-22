@@ -544,7 +544,7 @@ Claude Code debe construir en el orden de las fases y verificar cada una antes d
 ```
 
 - [x] **Fase 1. Base del proyecto:** Vite, React, TypeScript, Tailwind, React Router, cliente Supabase, `.env.example` y `netlify.toml`.
-- [ ] **Fase 2. Base de datos:** migraciones 0001 a 0007 y `supabase/tests/rules.sql`. Este archivo prueba cada regla: votar lo propio, un cuarto voto, votar con la competencia cerrada, segunda publicación, devolución de votos al reemplazar, RPC de admin llamada por un no admin y dominio no permitido.
+- [x] **Fase 2. Base de datos:** migraciones 0001 a 0007 y `supabase/tests/rules.sql`. Este archivo prueba cada regla: votar lo propio, un cuarto voto, votar con la competencia cerrada, segunda publicación, devolución de votos al reemplazar, RPC de admin llamada por un no admin y dominio no permitido.
 - [ ] **Fase 3. Autenticación:** login con Google, sesión persistente, cierre de sesión ante un dominio inválido, `sync_my_profile`, guardas de ruta y `useIsAdmin`.
 - [ ] **Fase 4. Publicar:** zona de subida con arrastrar, elegir archivo y pegar; validación; compresión; flujos de publicar, editar título, reemplazar y borrar.
 - [ ] **Fase 5. Tablón y votos:** grilla, conteos, +1 y −1, votos restantes, ver votantes, lightbox y orden.

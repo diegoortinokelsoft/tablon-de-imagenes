@@ -15,9 +15,10 @@ Competencia interna de imágenes de Grupo Kelsoft. SPA (React + Vite + TS) servi
 
 ## Base de datos
 
-- Cada cambio es una migración en `supabase/migrations/000N_nombre.sql`, aplicada con el MCP de Supabase (`apply_migration`). Nunca se modifica la base fuera de migraciones.
-- Los archivos del repo son la fuente de verdad. Las versiones registradas por el MCP no coinciden con los nombres `000N`, así que no se usa `supabase db push` sin antes `supabase migration repair`.
-- Las reglas se prueban con `supabase/tests/rules.sql` (transacción con `rollback`).
+- Cada cambio es una migración en `supabase/migrations/000N_nombre.sql`. Nunca se modifica la base fuera de migraciones.
+- El repo está vinculado (`supabase link`) y el historial remoto usa las mismas versiones `000N` que los archivos. Para aplicar: `npx supabase db push --dry-run` y luego `npx supabase db push`.
+- Si se aplica con el MCP (`apply_migration`), el MCP registra otra versión: hay que alinear después con `npx supabase migration repair` (revertir la versión del MCP y marcar `000N` como aplicada). El MCP rechaza solo las migraciones que contienen `delete`.
+- Las reglas se prueban con `npx supabase db query --linked -f supabase/tests/rules.sql -o json` (transacción con `rollback`; todos los casos deben dar `ok = true`).
 - Antes de cualquier acción destructiva, preguntar.
 
 ## Decisiones tomadas (además de la especificación)
