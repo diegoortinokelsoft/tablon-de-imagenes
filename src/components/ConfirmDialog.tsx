@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -41,7 +42,8 @@ export default function ConfirmDialog({
 
   if (!open) return null
 
-  return (
+  // Portal a <body>: dentro de un ancestro con transform (el cajón) un position: fixed queda atrapado.
+  return createPortal(
     <div
       className="fixed inset-0 z-40 flex animate-fade-in items-center justify-center bg-night-900/70 p-4"
       onMouseDown={(event) => {
@@ -72,6 +74,7 @@ export default function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -67,6 +67,11 @@ export default {
           to: { opacity: '1', transform: 'scale(1)' },
         },
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
+        // Sugiere que el cajón oculto se puede desplegar hacia la derecha.
+        nudge: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '50%': { transform: 'translateX(4px)' },
+        },
         beat: {
           '0%, 100%': { transform: 'scale(1)', opacity: '1' },
           '50%': { transform: 'scale(1.6)', opacity: '0.45' },
@@ -82,6 +87,7 @@ export default {
         'enter-up': 'enter-up 250ms ease-out backwards',
         'bounce-in': `bounce-in 250ms ${bounce} both`,
         'fade-in': 'fade-in 200ms ease-out both',
+        nudge: `nudge 800ms ${bounce} infinite`,
         beat: 'beat 1.2s ease-in-out infinite',
         confetti: 'confetti 2.4s ease-in 1 forwards',
       },

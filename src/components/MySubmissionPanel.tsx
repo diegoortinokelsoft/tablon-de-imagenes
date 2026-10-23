@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ImageUp, LoaderCircle, Trash2, X } from 'lucide-react'
 import { useSession } from '../hooks/useSession'
+import { useSubmissionDrawer } from '../hooks/useSubmissionDrawer'
 import { useToast } from '../hooks/useToast'
 import { TITLE_MAX, isValidTitle, type BoardItem } from '../lib/board'
 import { ERROR_MESSAGES, errorMessage } from '../lib/errors'
@@ -18,6 +19,11 @@ interface MySubmissionPanelProps {
   roundId: string
   mine: BoardItem | undefined
   imageUrl: string | undefined
+  className?: string
+  /** Contenedor desplazable del contenido (el cajón lo marca como inert cuando está oculto). */
+  contentRef?: RefObject<HTMLDivElement>
+  /** Zona de arrastre del cajón, pegada al borde derecho de la tarjeta. */
+  grip?: ReactNode
 }
 
 /** Valida y comprime un archivo; devuelve null y avisa si no sirve. */
@@ -84,14 +90,17 @@ function NewSubmission({ roundId }: { roundId: string }) {
     if (draft) URL.revokeObjectURL(draft.previewUrl)
   }, [draft])
 
+  const { setOpen } = useSubmissionDrawer()
+
   const handleFile = useCallback(
     async (file: File) => {
+      setOpen(true)
       setProcessing(true)
       const image = await prepare(file)
       setProcessing(false)
       if (image) setDraft({ ...image, previewUrl: URL.createObjectURL(image.blob) })
     },
-    [prepare],
+    [prepare, setOpen],
   )
 
   const publish = async () => {
@@ -290,13 +299,28 @@ function ExistingSubmission({ roundId, mine, imageUrl }: { roundId: string; mine
   )
 }
 
-export default function MySubmissionPanel({ roundId, mine, imageUrl }: MySubmissionPanelProps) {
+export default function MySubmissionPanel({
+  roundId,
+  mine,
+  imageUrl,
+  className = '',
+  contentRef,
+  grip,
+}: MySubmissionPanelProps) {
   return (
-    <section className="card flex flex-col gap-4 p-4 sm:p-6" aria-labelledby="mi-publicacion">
-      <h2 id="mi-publicacion" className="section-title">
-        Mi publicación
-      </h2>
-      {mine ? <ExistingSubmission roundId={roundId} mine={mine} imageUrl={imageUrl} /> : <NewSubmission roundId={roundId} />}
+    <section className={`card relative flex flex-col ${className}`} aria-labelledby="mi-publicacion">
+      {/* Con zona de arrastre, el contenido deja libre el borde derecho (y su barra de scroll no queda debajo). */}
+      <div ref={contentRef} className={`flex flex-col gap-4 overflow-y-auto p-4 sm:p-6 ${grip ? 'mr-6 pr-2 sm:pr-2' : ''}`}>
+        <h2 id="mi-publicacion" className="section-title">
+          Mi publicación
+        </h2>
+        {mine ? (
+          <ExistingSubmission roundId={roundId} mine={mine} imageUrl={imageUrl} />
+        ) : (
+          <NewSubmission roundId={roundId} />
+        )}
+      </div>
+      {grip}
     </section>
   )
 }

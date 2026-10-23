@@ -329,7 +329,10 @@ La interfaz está pensada primero para escritorio, con columnas que se reducen e
 
 **Tablón, estado abierto.**
 
-- En escritorio, panel lateral izquierdo con "Mi publicación" y la grilla a la derecha. En móvil, el panel pasa arriba.
+- "Mi publicación" es un cajón lateral izquierdo. Al entrar al tablón **arranca desplegado si la persona todavía no publicó y oculto si ya publicó**; después solo cambia cuando la persona lo abre o lo cierra. Oculto, asoma una franja de 24 px por el borde izquierdo; al pasar el mouse asoma un poco más y su flecha se mueve, para sugerir que se despliega con un clic.
+- Se despliega u oculta con el botón de ícono a la izquierda del encabezado (solo visible en el tablón abierto), con un clic en la franja o arrastrándola: hacia la derecha abre y hacia la izquierda cierra, con mouse o con dedo.
+- En escritorio (desde 1024 px), abierto empuja la grilla hacia la derecha. En móvil se superpone a la grilla con un velo `night-900` al 70 %, y se cierra con un clic en el velo o con Escape.
+- Pegar o soltar una imagen con el cajón oculto lo despliega.
 - Sin publicación: zona para subir que acepta arrastrar y soltar, elegir un archivo o pegar con Ctrl+V (útil para capturas), más el campo de título y una vista previa antes de confirmar.
 - Con publicación: miniatura, título editable y los botones "Reemplazar imagen" y "Borrar". Si la publicación tiene votos, ambos piden confirmación: "Vas a perder los N votos recibidos".
 - Grilla de tarjetas: 4 columnas desde 1280 px, 3 desde 1024 px, 2 desde 640 px y 1 en móvil.
@@ -434,6 +437,7 @@ La app tiene un solo tema, oscuro, sin modo claro. Todo texto debe cumplir contr
 | Fichas de voto (encabezado) | Tres círculos de 20 px: rellenos en `vote` los disponibles y vacíos con borde los usados, junto al texto "TE QUEDAN N" |
 | Avatar | Círculo con borde blanco de 3 px sobre oscuro (`ink` sobre claro); 32 px en tarjetas y 40 px en el encabezado; iniciales sobre `brand-400` si no hay foto |
 | Chip de estado | Preparada en gris `on-night-muted`; Abierta en `sky` con un punto que late; Cerrada en `sun`; Finalizada en `vote` con trofeo |
+| Cajón "Mi publicación" | Tarjeta `surface` de 384 px, fija bajo el encabezado, que se desliza en 200 ms con el rebote de la guía. En su borde derecho, una franja de arrastre de 24 px: flecha a la derecha oculto, ícono de agarre abierto |
 | Zona de subida | Panel `surface-alt`, borde discontinuo de 3 px en `brand-400`, ícono de imagen de 48 px y el texto "Arrastra, elige o pega (Ctrl+V) tu captura"; al arrastrar encima, el borde pasa a `sun` |
 | Inputs | Fondo `surface-alt`, borde de 3 px, radio de 14 px; contador de caracteres "0/80" a la derecha |
 | Modal | Tarjeta `surface` de máximo 480 px, centrada, sobre un velo `night-900` al 70 %; título en Lilita One; botones abajo a la derecha (de ancho completo en móvil) |

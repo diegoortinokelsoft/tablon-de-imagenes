@@ -1,18 +1,19 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ImageOff } from 'lucide-react'
-import Lightbox from '../components/Lightbox'
 import { Link } from 'react-router-dom'
-import MySubmissionPanel from '../components/MySubmissionPanel'
+import Lightbox from '../components/Lightbox'
 import RoundResults from '../components/RoundResults'
 import { ErrorState, Loading } from '../components/StateMessages'
 import SubmissionCard from '../components/SubmissionCard'
+import SubmissionDrawer from '../components/SubmissionDrawer'
 import { useBoard } from '../hooks/useBoard'
 import { useCurrentRound } from '../hooks/useCurrentRound'
 import { useLatestArchivedRound } from '../hooks/useHistory'
 import { useMyVotes } from '../hooks/useMyVotes'
 import { useSession } from '../hooks/useSession'
 import { useSignedUrls } from '../hooks/useSignedUrls'
+import { useSubmissionDrawer } from '../hooks/useSubmissionDrawer'
 import { useToast } from '../hooks/useToast'
 import { useVoteDetails } from '../hooks/useVoteDetails'
 import { SORT_LABELS, sortItems, type BoardItem, type SortOrder } from '../lib/board'
@@ -40,11 +41,27 @@ function OpenBoard({ roundId }: { roundId: string }) {
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<BoardItem | null>(null)
   const closeLightbox = useCallback(() => setLightbox(null), [])
+  const drawer = useSubmissionDrawer()
+  const { setAvailable, setOpen } = drawer
+  const drawerInitialized = useRef(false)
 
+  // El botón del encabezado solo aparece mientras el cajón existe.
+  useEffect(() => {
+    setAvailable(true)
+    return () => setAvailable(false)
+  }, [setAvailable])
   const userId = session?.user.id
   const mine = items.find((item) => item.userId === userId)
   const sorted = sortItems(items, order)
   const votesLeft = myVotes?.left ?? 0
+
+  // Posición inicial al entrar al tablón: desplegado si todavía no publicó, oculto si ya publicó.
+  // Solo una vez; después lo maneja la persona (publicar o borrar no lo mueve).
+  useEffect(() => {
+    if (isPending || isError || drawerInitialized.current) return
+    drawerInitialized.current = true
+    setOpen(!mine)
+  }, [isPending, isError, mine, setOpen])
 
   // Sin votos optimistas: el botón se deshabilita mientras la RPC responde y luego se vuelve a leer.
   const vote = async (submissionId: string, delta: 1 | -1) => {
@@ -61,10 +78,10 @@ function OpenBoard({ roundId }: { roundId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <aside className="w-full shrink-0 lg:sticky lg:top-24 lg:w-96">
-        <MySubmissionPanel roundId={roundId} mine={mine} imageUrl={mine ? urls[mine.imagePath] : undefined} />
-      </aside>
+    <div
+      className={`transition-[padding] duration-200 ease-out drawer-peek-clearance ${drawer.open ? 'lg:drawer-push' : ''}`}
+    >
+      <SubmissionDrawer roundId={roundId} mine={mine} imageUrl={mine ? urls[mine.imagePath] : undefined} />
 
       <section className="flex min-w-0 flex-1 flex-col gap-4" aria-labelledby="titulo-tablon">
         <div className="flex flex-wrap items-end justify-between gap-4">
