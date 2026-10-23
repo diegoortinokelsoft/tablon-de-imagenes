@@ -548,7 +548,7 @@ Claude Code debe construir en el orden de las fases y verificar cada una antes d
 - [x] **Fase 3. Autenticación:** login con Google, sesión persistente, cierre de sesión ante un dominio inválido, `sync_my_profile`, guardas de ruta y `useIsAdmin`.
 - [x] **Fase 4. Publicar:** zona de subida con arrastrar, elegir archivo y pegar; validación; compresión; flujos de publicar, editar título, reemplazar y borrar.
 - [x] **Fase 5. Tablón y votos:** grilla, conteos, +1 y −1, votos restantes, ver votantes, lightbox y orden.
-- [ ] **Fase 6. Tiempo real:** canal `board`, invalidación con debounce y cambio de vista según el estado.
+- [x] **Fase 6. Tiempo real:** canal `board`, invalidación con debounce y cambio de vista según el estado.
 - [ ] **Fase 7. Estados y ranking:** vistas preparada, cerrada (ranking con empates) y finalizada (ganador).
 - [ ] **Fase 8. Administración:** cambios de estado, renombrar, borrar publicación, finalizar con ganador, nueva competencia, reinicio total y limpieza de Storage.
 - [ ] **Fase 9. Historial:** lista y detalle de competencias archivadas, y eliminar del historial.
