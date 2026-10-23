@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { isValidTitle, sortItems, summarizeMyVotes, toBoardItem, type BoardItem } from './board'
+import { isValidTitle, rankItems, sortItems, summarizeMyVotes, tiedPositions, toBoardItem, type BoardItem } from './board'
+
+const ranked = (id: string, position: number, createdAt = '2026-10-01') => ({ id, position, createdAt }) as BoardItem
+
+describe('rankItems', () => {
+  it('ordena por posición y, a igualdad, por la más antigua', () => {
+    const items = [ranked('c', 3), ranked('b', 1, '2026-10-02'), ranked('a', 1, '2026-10-01')]
+    expect(rankItems(items).map((i) => i.id)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('tiedPositions', () => {
+  it('detecta las posiciones compartidas', () => {
+    expect(tiedPositions([ranked('a', 1), ranked('b', 1), ranked('c', 3)])).toEqual(new Set([1]))
+  })
+
+  it('sin empates devuelve un conjunto vacío', () => {
+    expect(tiedPositions([ranked('a', 1), ranked('b', 2)]).size).toBe(0)
+  })
+})
 
 const item = (id: string, voteCount: number, createdAt: string) => ({ id, voteCount, createdAt }) as BoardItem
 

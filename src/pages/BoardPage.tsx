@@ -2,10 +2,13 @@ import { useCallback, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ImageOff, LoaderCircle } from 'lucide-react'
 import Lightbox from '../components/Lightbox'
+import { Link } from 'react-router-dom'
 import MySubmissionPanel from '../components/MySubmissionPanel'
+import RoundResults from '../components/RoundResults'
 import SubmissionCard from '../components/SubmissionCard'
 import { useBoard } from '../hooks/useBoard'
 import { useCurrentRound } from '../hooks/useCurrentRound'
+import { useLatestArchivedRound } from '../hooks/useHistory'
 import { useMyVotes } from '../hooks/useMyVotes'
 import { useSession } from '../hooks/useSession'
 import { useSignedUrls } from '../hooks/useSignedUrls'
@@ -135,13 +138,39 @@ export default function BoardPage() {
     )
   }
 
-  if (!round || round.status === 'pending') {
-    return <Notice title="La competencia todavía no abrió">Vuelve cuando el administrador la abra.</Notice>
+  if (!round || round.status === 'pending') return <PendingView />
+
+  if (round.status === 'closed') {
+    return (
+      <div className="flex flex-col gap-8">
+        <Notice title="La votación está cerrada">El administrador va a elegir al ganador.</Notice>
+        <RoundResults roundId={round.id} winnerId={null} />
+      </div>
+    )
   }
 
-  if (round.status !== 'open') {
-    return <Notice title="La votación está cerrada" />
+  if (round.status === 'finalized') {
+    return <RoundResults roundId={round.id} winnerId={round.winner_submission_id} />
   }
 
   return <OpenBoard roundId={round.id} />
+}
+
+function PendingView() {
+  const { data: latest } = useLatestArchivedRound()
+  return (
+    <Notice title="La competencia todavía no abrió">
+      Vuelve cuando el administrador la abra.
+      {latest && (
+        <>
+          {' '}
+          Mientras tanto, mira el{' '}
+          <Link to={`/historial/${latest.id}`} className="text-on-night underline">
+            resultado de {latest.name}
+          </Link>
+          .
+        </>
+      )}
+    </Notice>
+  )
 }

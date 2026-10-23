@@ -48,6 +48,18 @@ export function sortItems(items: BoardItem[], order: SortOrder): BoardItem[] {
   return [...items].sort((a, b) => (order === 'votes' ? b.voteCount - a.voteCount || byRecent(a, b) : byRecent(a, b)))
 }
 
+/** Ranking por posición (rank() de la vista: los empates comparten posición) y, a igualdad, la más antigua. */
+export function rankItems(items: BoardItem[]): BoardItem[] {
+  return [...items].sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt))
+}
+
+/** Posiciones compartidas por más de una publicación (llevan la etiqueta "Empate"). */
+export function tiedPositions(items: BoardItem[]): Set<number> {
+  const counts = new Map<number, number>()
+  for (const item of items) counts.set(item.position, (counts.get(item.position) ?? 0) + 1)
+  return new Set([...counts].filter(([, count]) => count > 1).map(([position]) => position))
+}
+
 export const VOTES_PER_ROUND = 3
 
 /** Votos propios por publicación y votos que quedan (3 menos las filas propias en votes). */
