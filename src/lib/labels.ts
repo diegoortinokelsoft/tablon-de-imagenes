@@ -10,6 +10,19 @@ export const STATUS_LABELS: Record<RoundStatus, string> = {
   archived: 'Historial',
 }
 
+/** Sugiere el nombre de la próxima competencia: "Competencia 1" → "Competencia 2". */
+export function suggestNextRoundName(current: string | undefined): string {
+  const match = current?.trim().match(/^(.*?)(\d+)$/)
+  if (!match) return 'Nueva competencia'
+  return `${match[1]}${Number(match[2]) + 1}`
+}
+
+const dateFormat = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long', year: 'numeric' })
+
+export function formatDate(iso: string | null | undefined): string {
+  return iso ? dateFormat.format(new Date(iso)) : ''
+}
+
 /** Iniciales para el avatar cuando no hay foto: primera letra del primer y último nombre. */
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)

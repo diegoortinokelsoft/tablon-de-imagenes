@@ -1,7 +1,7 @@
 import type { RoundStatus } from './labels'
 
 // Consultas que se vuelven a leer ante cualquier cambio en rounds, submissions o votes.
-export const REALTIME_QUERY_KEYS = ['board', 'vote_details', 'current_round', 'my_votes', 'history'] as const
+export const REALTIME_QUERY_KEYS = ['board', 'vote_details', 'current_round', 'my_votes', 'history', 'admin_stats'] as const
 
 export const REALTIME_DEBOUNCE_MS = 300
 
