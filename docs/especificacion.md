@@ -552,7 +552,7 @@ Claude Code debe construir en el orden de las fases y verificar cada una antes d
 - [x] **Fase 7. Estados y ranking:** vistas preparada, cerrada (ranking con empates) y finalizada (ganador).
 - [x] **Fase 8. Administración:** cambios de estado, renombrar, borrar publicación, finalizar con ganador, nueva competencia, reinicio total y limpieza de Storage.
 - [x] **Fase 9. Historial:** lista y detalle de competencias archivadas, y eliminar del historial.
-- [ ] **Fase 10. Pulido y entrega:** responsive, accesibilidad, mensajes de error, estados vacíos y de carga, y `README.md` con los pasos de configuración.
+- [x] **Fase 10. Pulido y entrega:** responsive, accesibilidad, mensajes de error, estados vacíos y de carga, y `README.md` con los pasos de configuración.
 
 ## Criterios de aceptación
 

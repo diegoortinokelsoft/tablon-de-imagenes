@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
-import { History, LoaderCircle, Trophy } from 'lucide-react'
+import { History, Trophy } from 'lucide-react'
+import { ErrorState, Loading } from '../components/StateMessages'
 import { useArchivedRounds, useWinners } from '../hooks/useHistory'
 import { useSignedUrls } from '../hooks/useSignedUrls'
 import { formatDate } from '../lib/labels'
 
 export default function HistoryPage() {
-  const { data: rounds = [], isPending } = useArchivedRounds()
+  const { data: rounds = [], isPending, isError, refetch } = useArchivedRounds()
   const winnerIds = rounds.map((round) => round.winner_submission_id).filter((id): id is string => !!id)
   const { data: winners = {} } = useWinners(winnerIds)
   const { data: urls = {} } = useSignedUrls(Object.values(winners).map((winner) => winner.imagePath))
@@ -15,9 +16,9 @@ export default function HistoryPage() {
       <h1 className="page-title">Historial</h1>
 
       {isPending ? (
-        <div className="flex justify-center py-12 text-on-night-muted" role="status">
-          <LoaderCircle className="h-6 w-6 animate-spin" strokeWidth={2.5} aria-label="Cargando historial" />
-        </div>
+        <Loading label="Cargando historial…" />
+      ) : isError ? (
+        <ErrorState message="No se pudo cargar el historial." onRetry={() => void refetch()} />
       ) : rounds.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-card border-3 border-dashed border-on-night-muted p-12 text-center text-on-night-muted">
           <History className="h-12 w-12" strokeWidth={2.5} aria-hidden />

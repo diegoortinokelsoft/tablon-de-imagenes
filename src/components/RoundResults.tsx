@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react'
-import { LoaderCircle } from 'lucide-react'
 import { useBoard } from '../hooks/useBoard'
 import { useSignedUrls } from '../hooks/useSignedUrls'
 import type { BoardItem } from '../lib/board'
 import Lightbox from './Lightbox'
 import RankingList from './RankingList'
+import { ErrorState, Loading } from './StateMessages'
 import WinnerHero from './WinnerHero'
 
 interface RoundResultsProps {
@@ -15,19 +15,14 @@ interface RoundResultsProps {
 
 /** Ganador destacado (si lo hay) y ranking completo de una competencia. */
 export default function RoundResults({ roundId, winnerId, celebrate = true }: RoundResultsProps) {
-  const { data: items = [], isPending } = useBoard(roundId)
+  const { data: items = [], isPending, isError, refetch } = useBoard(roundId)
   const { data: urls = {} } = useSignedUrls(items.map((item) => item.imagePath))
   const [lightbox, setLightbox] = useState<BoardItem | null>(null)
   const closeLightbox = useCallback(() => setLightbox(null), [])
   const winner = winnerId ? items.find((item) => item.id === winnerId) : undefined
 
-  if (isPending) {
-    return (
-      <div className="flex justify-center py-12 text-on-night-muted" role="status">
-        <LoaderCircle className="h-6 w-6 animate-spin" strokeWidth={2.5} aria-label="Cargando ranking" />
-      </div>
-    )
-  }
+  if (isPending) return <Loading label="Cargando ranking…" />
+  if (isError) return <ErrorState message="No se pudo cargar el ranking." onRetry={() => void refetch()} />
 
   return (
     <div className="flex flex-col gap-12">

@@ -1,20 +1,16 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, LoaderCircle } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import { ErrorState, Loading } from '../components/StateMessages'
 import RoundResults from '../components/RoundResults'
 import { useRound } from '../hooks/useHistory'
 import { formatDate } from '../lib/labels'
 
 export default function HistoryDetailPage() {
   const { roundId } = useParams()
-  const { data: round, isPending } = useRound(roundId)
+  const { data: round, isPending, isError, refetch } = useRound(roundId)
 
-  if (isPending) {
-    return (
-      <div className="flex justify-center py-12 text-on-night-muted" role="status">
-        <LoaderCircle className="h-6 w-6 animate-spin" strokeWidth={2.5} aria-label="Cargando" />
-      </div>
-    )
-  }
+  if (isPending) return <Loading />
+  if (isError) return <ErrorState message="No se pudo cargar la competencia." onRetry={() => void refetch()} />
 
   // La competencia actual no es historial: se ve en el tablón.
   if (round && round.status !== 'archived') return <Navigate to="/" replace />

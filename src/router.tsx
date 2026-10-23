@@ -7,11 +7,13 @@ import HistoryPage from './pages/HistoryPage'
 import HistoryDetailPage from './pages/HistoryDetailPage'
 import AdminPage from './pages/AdminPage'
 import StylesPage from './pages/StylesPage'
+import ErrorPage from './pages/ErrorPage'
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
+  { path: '/login', element: <LoginPage />, errorElement: <ErrorPage /> },
   {
     element: <App />,
+    errorElement: <ErrorPage />,
     children: [
       { path: '/', element: <BoardPage /> },
       { path: '/historial', element: <HistoryPage /> },

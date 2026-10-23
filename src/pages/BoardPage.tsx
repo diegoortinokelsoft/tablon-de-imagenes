@@ -1,10 +1,11 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ImageOff, LoaderCircle } from 'lucide-react'
+import { ImageOff } from 'lucide-react'
 import Lightbox from '../components/Lightbox'
 import { Link } from 'react-router-dom'
 import MySubmissionPanel from '../components/MySubmissionPanel'
 import RoundResults from '../components/RoundResults'
+import { ErrorState, Loading } from '../components/StateMessages'
 import SubmissionCard from '../components/SubmissionCard'
 import { useBoard } from '../hooks/useBoard'
 import { useCurrentRound } from '../hooks/useCurrentRound'
@@ -31,7 +32,7 @@ function OpenBoard({ roundId }: { roundId: string }) {
   const { session } = useSession()
   const { notify } = useToast()
   const queryClient = useQueryClient()
-  const { data: items = [], isPending } = useBoard(roundId)
+  const { data: items = [], isPending, isError, refetch } = useBoard(roundId)
   const { data: myVotes } = useMyVotes()
   const { data: voters = {} } = useVoteDetails(roundId)
   const { data: urls = {} } = useSignedUrls(items.map((item) => item.imagePath))
@@ -87,9 +88,9 @@ function OpenBoard({ roundId }: { roundId: string }) {
         </div>
 
         {isPending ? (
-          <div className="flex justify-center py-12 text-on-night-muted" role="status">
-            <LoaderCircle className="h-6 w-6 animate-spin" strokeWidth={2.5} aria-label="Cargando publicaciones" />
-          </div>
+          <Loading label="Cargando publicaciones…" />
+        ) : isError ? (
+          <ErrorState message="No se pudieron cargar las publicaciones." onRetry={() => void refetch()} />
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-card border-3 border-dashed border-on-night-muted p-12 text-center text-on-night-muted">
             <ImageOff className="h-12 w-12" strokeWidth={2.5} aria-hidden />
@@ -128,15 +129,10 @@ function OpenBoard({ roundId }: { roundId: string }) {
 }
 
 export default function BoardPage() {
-  const { data: round, isPending } = useCurrentRound()
+  const { data: round, isPending, isError, refetch } = useCurrentRound()
 
-  if (isPending) {
-    return (
-      <div className="flex justify-center py-12 text-on-night-muted" role="status">
-        <LoaderCircle className="h-6 w-6 animate-spin" strokeWidth={2.5} aria-label="Cargando" />
-      </div>
-    )
-  }
+  if (isPending) return <Loading />
+  if (isError) return <ErrorState message="No se pudo cargar la competencia." onRetry={() => void refetch()} />
 
   if (!round || round.status === 'pending') return <PendingView />
 

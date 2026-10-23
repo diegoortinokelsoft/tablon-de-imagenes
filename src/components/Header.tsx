@@ -83,22 +83,22 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-10 border-b-3 border-ink bg-night-800">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
-        <Link to="/" className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="truncate font-display text-section-title uppercase">
+        <Link to="/" className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
+          <span className="min-w-0 truncate font-display text-section-title uppercase">
             {round?.name ?? 'Tablón de Imágenes'}
           </span>
           {round && <StatusChip status={round.status} />}
         </Link>
         {myVotes && <VoteTokens left={myVotes.left} />}
-        <nav className="flex items-center gap-1" aria-label="Principal">
-          <NavLink to="/historial" className={navClass}>
+        <nav className="ml-auto flex items-center gap-1 sm:ml-0" aria-label="Principal">
+          <NavLink to="/historial" className={navClass} aria-label="Historial">
             <History className="h-5 w-5" strokeWidth={2.5} aria-hidden />
-            Historial
+            <span className="hidden sm:inline">Historial</span>
           </NavLink>
           {isAdmin && (
-            <NavLink to="/admin" className={navClass}>
+            <NavLink to="/admin" className={navClass} aria-label="Administración">
               <Shield className="h-5 w-5" strokeWidth={2.5} aria-hidden />
-              Admin
+              <span className="hidden sm:inline">Admin</span>
             </NavLink>
           )}
         </nav>

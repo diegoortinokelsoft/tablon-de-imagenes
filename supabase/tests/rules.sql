@@ -87,7 +87,11 @@ $$;
 do $$
 declare
   c_admin_email constant text := 'diego.martin.ortino@grupokelsoft.com';
-  c_admin constant uuid := 'aaaaaaaa-0000-4000-8000-000000000000';
+  -- Si el admin real ya inició sesión, se usa su usuario (el email es único en auth.users).
+  c_admin uuid := coalesce(
+    (select id from auth.users where lower(email) = 'diego.martin.ortino@grupokelsoft.com'),
+    'aaaaaaaa-0000-4000-8000-000000000000'
+  );
   c_ana constant uuid := 'aaaaaaaa-0000-4000-8000-000000000001';
   c_beto constant uuid := 'aaaaaaaa-0000-4000-8000-000000000002';
   c_carla constant uuid := 'aaaaaaaa-0000-4000-8000-000000000003';
@@ -105,8 +109,11 @@ declare
 begin
   -- ===== Preparación: usuarios ficticios (el trigger crea sus perfiles) =====
   insert into auth.users (id, email, aud, role, raw_user_meta_data)
+  select c_admin, c_admin_email, 'authenticated', 'authenticated', '{"full_name":"Diego"}'::jsonb
+  where not exists (select 1 from auth.users where id = c_admin);
+
+  insert into auth.users (id, email, aud, role, raw_user_meta_data)
   values
-    (c_admin, c_admin_email, 'authenticated', 'authenticated', '{"full_name":"Diego"}'),
     (c_ana, 'ana.prueba@grupokelsoft.com', 'authenticated', 'authenticated', '{"full_name":"Ana","avatar_url":"https://x/a.png"}'),
     (c_beto, 'beto.prueba@grupokelsoft.com', 'authenticated', 'authenticated', '{"name":"Beto"}'),
     (c_carla, 'Carla.Prueba@GrupoKelsoft.com', 'authenticated', 'authenticated', '{"full_name":"Carla"}');

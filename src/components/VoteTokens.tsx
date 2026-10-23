@@ -17,7 +17,7 @@ export default function VoteTokens({ left }: { left: number }) {
           )
         })}
       </span>
-      <span className="text-label uppercase" aria-hidden>
+      <span className="hidden text-label uppercase sm:inline" aria-hidden>
         Te quedan {left} de {VOTES_PER_ROUND} votos
       </span>
     </div>
