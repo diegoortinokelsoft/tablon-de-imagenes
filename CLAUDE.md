@@ -28,7 +28,7 @@ Competencia interna de imágenes de Grupo Kelsoft. SPA (React + Vite + TS) servi
 - Si el admin borra la publicación ganadora de una competencia finalizada, la competencia vuelve a `closed` para elegir otro ganador.
 - Los parámetros de las RPC llevan prefijo `p_` (por ejemplo `cast_vote({ p_submission_id })`).
 - Botón de peligro con texto en `ink` (no blanco): blanco sobre `danger` no cumple AA.
-- "Mi publicación" es un cajón lateral que arranca oculto (ver la especificación). Los diálogos y el lightbox se montan con portal en `<body>`, porque dentro del cajón (con `transform`) un `position: fixed` queda atrapado.
+- "Mi publicación" es un cajón lateral: al entrar arranca desplegado sin publicación y oculto con publicación (ver la especificación). Los diálogos y el lightbox se montan con portal en `<body>`, porque dentro del cajón (con `transform`) un `position: fixed` queda atrapado.
 - Encabezado: fichas de voto + "Te quedan N de 3 votos". "Participantes con sesión" = cantidad de perfiles. Ruta `/estilos` solo para el admin.
 
 ## Comandos

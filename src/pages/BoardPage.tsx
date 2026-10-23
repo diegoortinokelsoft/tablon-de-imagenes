@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ImageOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -42,18 +42,26 @@ function OpenBoard({ roundId }: { roundId: string }) {
   const [lightbox, setLightbox] = useState<BoardItem | null>(null)
   const closeLightbox = useCallback(() => setLightbox(null), [])
   const drawer = useSubmissionDrawer()
-  const { setAvailable } = drawer
+  const { setAvailable, setOpen } = drawer
+  const drawerInitialized = useRef(false)
 
   // El botón del encabezado solo aparece mientras el cajón existe.
   useEffect(() => {
     setAvailable(true)
     return () => setAvailable(false)
   }, [setAvailable])
-
   const userId = session?.user.id
   const mine = items.find((item) => item.userId === userId)
   const sorted = sortItems(items, order)
   const votesLeft = myVotes?.left ?? 0
+
+  // Posición inicial al entrar al tablón: desplegado si todavía no publicó, oculto si ya publicó.
+  // Solo una vez; después lo maneja la persona (publicar o borrar no lo mueve).
+  useEffect(() => {
+    if (isPending || isError || drawerInitialized.current) return
+    drawerInitialized.current = true
+    setOpen(!mine)
+  }, [isPending, isError, mine, setOpen])
 
   // Sin votos optimistas: el botón se deshabilita mientras la RPC responde y luego se vuelve a leer.
   const vote = async (submissionId: string, delta: 1 | -1) => {

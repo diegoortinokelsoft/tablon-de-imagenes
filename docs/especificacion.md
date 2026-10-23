@@ -329,7 +329,7 @@ La interfaz está pensada primero para escritorio, con columnas que se reducen e
 
 **Tablón, estado abierto.**
 
-- "Mi publicación" es un cajón lateral izquierdo que **arranca siempre oculto**. Oculto, asoma una franja de 24 px por el borde izquierdo; al pasar el mouse asoma un poco más y su flecha se mueve, para sugerir que se despliega con un clic.
+- "Mi publicación" es un cajón lateral izquierdo. Al entrar al tablón **arranca desplegado si la persona todavía no publicó y oculto si ya publicó**; después solo cambia cuando la persona lo abre o lo cierra. Oculto, asoma una franja de 24 px por el borde izquierdo; al pasar el mouse asoma un poco más y su flecha se mueve, para sugerir que se despliega con un clic.
 - Se despliega u oculta con el botón de ícono a la izquierda del encabezado (solo visible en el tablón abierto), con un clic en la franja o arrastrándola: hacia la derecha abre y hacia la izquierda cierra, con mouse o con dedo.
 - En escritorio (desde 1024 px), abierto empuja la grilla hacia la derecha. En móvil se superpone a la grilla con un velo `night-900` al 70 %, y se cierra con un clic en el velo o con Escape.
 - Pegar o soltar una imagen con el cajón oculto lo despliega.
