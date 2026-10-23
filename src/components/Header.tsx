@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { History, LogOut, Shield } from 'lucide-react'
+import { History, LogOut, PanelLeftClose, PanelLeftOpen, Shield } from 'lucide-react'
 import { useCurrentRound } from '../hooks/useCurrentRound'
 import { useIsAdmin } from '../hooks/useIsAdmin'
 import { useMyVotes } from '../hooks/useMyVotes'
 import { useSession } from '../hooks/useSession'
+import { useSubmissionDrawer } from '../hooks/useSubmissionDrawer'
 import { signOut } from '../lib/auth'
 import Avatar from './Avatar'
 import StatusChip from './StatusChip'
+import { DRAWER_ID } from './SubmissionDrawer'
 import VoteTokens from './VoteTokens'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -75,20 +77,54 @@ function UserMenu() {
   )
 }
 
+/** Botón que despliega u oculta el cajón "Mi publicación" (solo en el tablón abierto). */
+function DrawerToggle() {
+  const { available, open, toggle } = useSubmissionDrawer()
+  if (!available) return null
+  const Icon = open ? PanelLeftClose : PanelLeftOpen
+  return (
+    <button
+      type="button"
+      className="btn btn-icon btn-secondary shrink-0"
+      aria-label={open ? 'Ocultar mi publicación' : 'Mostrar mi publicación'}
+      aria-expanded={open}
+      aria-controls={DRAWER_ID}
+      onClick={toggle}
+    >
+      <Icon strokeWidth={2.5} aria-hidden />
+    </button>
+  )
+}
+
 export default function Header() {
   const { data: round } = useCurrentRound()
   const { data: myVotes } = useMyVotes()
   const { isAdmin } = useIsAdmin()
+  const ref = useRef<HTMLElement>(null)
+
+  // Altura del encabezado en --header-h: el cajón se posiciona debajo (en móvil el encabezado ocupa dos filas).
+  useLayoutEffect(() => {
+    const header = ref.current
+    if (!header) return
+    const update = () => document.documentElement.style.setProperty('--header-h', `${header.offsetHeight}px`)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(header)
+    return () => observer.disconnect()
+  }, [])
 
   return (
-    <header className="sticky top-0 z-10 border-b-3 border-ink bg-night-800">
+    <header ref={ref} className="sticky top-0 z-20 border-b-3 border-ink bg-night-800">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
-        <Link to="/" className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
-          <span className="min-w-0 truncate font-display text-section-title uppercase">
-            {round?.name ?? 'Tablón de Imágenes'}
-          </span>
-          {round && <StatusChip status={round.status} />}
-        </Link>
+        <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
+          <DrawerToggle />
+          <Link to="/" className="flex min-w-0 items-center gap-3">
+            <span className="min-w-0 truncate font-display text-section-title uppercase">
+              {round?.name ?? 'Tablón de Imágenes'}
+            </span>
+            {round && <StatusChip status={round.status} />}
+          </Link>
+        </div>
         {myVotes && <VoteTokens left={myVotes.left} />}
         <nav className="ml-auto flex items-center gap-1 sm:ml-0" aria-label="Principal">
           <NavLink to="/historial" className={navClass} aria-label="Historial">

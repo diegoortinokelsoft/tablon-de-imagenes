@@ -105,6 +105,25 @@
     @apply border-on-night;
   }
 
+  /* Cajón "Mi publicación" en escritorio: la grilla deja lugar al panel abierto.
+     Panel (spacing.96) + separación (spacing.6) + su margen izquierdo (spacing.8), menos donde
+     ya empieza el contenido (el padding del main o el margen del contenedor centrado en 2xl). */
+  .drawer-push {
+    padding-left: max(
+      0px,
+      calc(
+        theme('spacing.8') + theme('spacing.96') + theme('spacing.6') -
+          max(theme('spacing.8'), (100vw - theme('screens.2xl')) / 2 + theme('spacing.8'))
+      )
+    );
+  }
+
+  /* Cajón oculto: la grilla deja libre la franja que asoma (24 px) más 12 px de aire,
+     descontando el padding del main en cada ancho (16, 24 y 32 px). */
+  .drawer-peek-clearance {
+    @apply pl-5 sm:pl-3 lg:pl-1;
+  }
+
   /* Contador de votos */
   .vote-pill {
     @apply inline-flex min-w-12 items-center justify-center rounded-full bg-vote px-3 font-display text-vote-card tabular-nums text-on-night;

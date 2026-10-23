@@ -4,6 +4,11 @@
 @import 'tailwindcss/utilities';
 
 @layer base {
+  :root {
+    /* Altura del encabezado; Header la actualiza al medirse. Valor inicial: una fila en escritorio. */
+    --header-h: 67px;
+  }
+
   html {
     @apply font-body text-body text-on-night antialiased;
   }

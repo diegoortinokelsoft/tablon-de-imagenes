@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import Header from './components/Header'
 import { RequireAuth } from './components/RouteGuards'
+import SubmissionDrawerProvider from './components/SubmissionDrawerProvider'
 import { useRealtime, useRoundStatusNotice } from './hooks/useRealtime'
 
 function AuthenticatedLayout() {
@@ -19,7 +20,9 @@ function AuthenticatedLayout() {
 export default function App() {
   return (
     <RequireAuth>
-      <AuthenticatedLayout />
+      <SubmissionDrawerProvider>
+        <AuthenticatedLayout />
+      </SubmissionDrawerProvider>
     </RequireAuth>
   )
 }

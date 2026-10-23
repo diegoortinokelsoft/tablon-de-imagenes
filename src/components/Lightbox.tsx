@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 interface LightboxProps {
@@ -27,7 +28,7 @@ export default function Lightbox({ src, title, author, onClose }: LightboxProps)
     }
   }, [onClose])
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -51,6 +52,7 @@ export default function Lightbox({ src, title, author, onClose }: LightboxProps)
         <p className="text-card-title">{title}</p>
         <p className="text-secondary text-on-night-muted">{author}</p>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
