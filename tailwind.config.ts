@@ -78,7 +78,8 @@ export default {
       },
       animation: {
         pop: `pop 200ms ${bounce}`,
-        'enter-up': 'enter-up 250ms ease-out both',
+        // backwards: al terminar no retiene el transform, así funciona el hover que sube la tarjeta.
+        'enter-up': 'enter-up 250ms ease-out backwards',
         'bounce-in': `bounce-in 250ms ${bounce} both`,
         'fade-in': 'fade-in 200ms ease-out both',
         beat: 'beat 1.2s ease-in-out infinite',

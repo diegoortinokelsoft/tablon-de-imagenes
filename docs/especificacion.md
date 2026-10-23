@@ -547,7 +547,7 @@ Claude Code debe construir en el orden de las fases y verificar cada una antes d
 - [x] **Fase 2. Base de datos:** migraciones 0001 a 0007 y `supabase/tests/rules.sql`. Este archivo prueba cada regla: votar lo propio, un cuarto voto, votar con la competencia cerrada, segunda publicación, devolución de votos al reemplazar, RPC de admin llamada por un no admin y dominio no permitido.
 - [x] **Fase 3. Autenticación:** login con Google, sesión persistente, cierre de sesión ante un dominio inválido, `sync_my_profile`, guardas de ruta y `useIsAdmin`.
 - [x] **Fase 4. Publicar:** zona de subida con arrastrar, elegir archivo y pegar; validación; compresión; flujos de publicar, editar título, reemplazar y borrar.
-- [ ] **Fase 5. Tablón y votos:** grilla, conteos, +1 y −1, votos restantes, ver votantes, lightbox y orden.
+- [x] **Fase 5. Tablón y votos:** grilla, conteos, +1 y −1, votos restantes, ver votantes, lightbox y orden.
 - [ ] **Fase 6. Tiempo real:** canal `board`, invalidación con debounce y cambio de vista según el estado.
 - [ ] **Fase 7. Estados y ranking:** vistas preparada, cerrada (ranking con empates) y finalizada (ganador).
 - [ ] **Fase 8. Administración:** cambios de estado, renombrar, borrar publicación, finalizar con ganador, nueva competencia, reinicio total y limpieza de Storage.

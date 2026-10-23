@@ -3,10 +3,12 @@ import { Link, NavLink } from 'react-router-dom'
 import { History, LogOut, Shield } from 'lucide-react'
 import { useCurrentRound } from '../hooks/useCurrentRound'
 import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useMyVotes } from '../hooks/useMyVotes'
 import { useSession } from '../hooks/useSession'
 import { signOut } from '../lib/auth'
 import Avatar from './Avatar'
 import StatusChip from './StatusChip'
+import VoteTokens from './VoteTokens'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-2 rounded-btn px-3 py-2 text-secondary uppercase transition duration-150 hover:text-on-night ${
@@ -75,6 +77,7 @@ function UserMenu() {
 
 export default function Header() {
   const { data: round } = useCurrentRound()
+  const { data: myVotes } = useMyVotes()
   const { isAdmin } = useIsAdmin()
 
   return (
@@ -86,6 +89,7 @@ export default function Header() {
           </span>
           {round && <StatusChip status={round.status} />}
         </Link>
+        {myVotes && <VoteTokens left={myVotes.left} />}
         <nav className="flex items-center gap-1" aria-label="Principal">
           <NavLink to="/historial" className={navClass}>
             <History className="h-5 w-5" strokeWidth={2.5} aria-hidden />

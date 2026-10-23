@@ -1,5 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { isValidTitle, toBoardItem } from './board'
+import { isValidTitle, sortItems, summarizeMyVotes, toBoardItem, type BoardItem } from './board'
+
+const item = (id: string, voteCount: number, createdAt: string) => ({ id, voteCount, createdAt }) as BoardItem
+
+describe('sortItems', () => {
+  const items = [item('a', 1, '2026-10-01'), item('b', 3, '2026-10-02'), item('c', 1, '2026-10-03')]
+
+  it('ordena por más recientes', () => {
+    expect(sortItems(items, 'recent').map((i) => i.id)).toEqual(['c', 'b', 'a'])
+  })
+
+  it('ordena por más votadas y desempata por la más reciente', () => {
+    expect(sortItems(items, 'votes').map((i) => i.id)).toEqual(['b', 'c', 'a'])
+  })
+
+  it('no modifica la lista original', () => {
+    sortItems(items, 'votes')
+    expect(items.map((i) => i.id)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('summarizeMyVotes', () => {
+  it('cuenta votos por publicación y los que quedan', () => {
+    expect(summarizeMyVotes(['x', 'x', 'y'])).toEqual({ bySubmission: { x: 2, y: 1 }, used: 3, left: 0 })
+  })
+
+  it('sin votos quedan 3', () => {
+    expect(summarizeMyVotes([])).toEqual({ bySubmission: {}, used: 0, left: 3 })
+  })
+})
 
 describe('isValidTitle', () => {
   it('acepta de 1 a 80 caracteres', () => {

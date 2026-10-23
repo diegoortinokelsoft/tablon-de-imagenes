@@ -35,6 +35,28 @@ export function toBoardItem(row: Tables<'board'>): BoardItem {
   }
 }
 
+export type SortOrder = 'recent' | 'votes'
+
+export const SORT_LABELS: Record<SortOrder, string> = {
+  recent: 'Más recientes',
+  votes: 'Más votadas',
+}
+
+/** "Más recientes" por fecha de publicación; "Más votadas" por votos y, a igualdad, la más reciente. */
+export function sortItems(items: BoardItem[], order: SortOrder): BoardItem[] {
+  const byRecent = (a: BoardItem, b: BoardItem) => b.createdAt.localeCompare(a.createdAt)
+  return [...items].sort((a, b) => (order === 'votes' ? b.voteCount - a.voteCount || byRecent(a, b) : byRecent(a, b)))
+}
+
+export const VOTES_PER_ROUND = 3
+
+/** Votos propios por publicación y votos que quedan (3 menos las filas propias en votes). */
+export function summarizeMyVotes(submissionIds: string[]) {
+  const bySubmission: Record<string, number> = {}
+  for (const id of submissionIds) bySubmission[id] = (bySubmission[id] ?? 0) + 1
+  return { bySubmission, used: submissionIds.length, left: Math.max(0, VOTES_PER_ROUND - submissionIds.length) }
+}
+
 export const TITLE_MAX = 80
 
 /** Mismo criterio que public.clean_title(): de 1 a 80 caracteres sin espacios en los extremos. */
