@@ -103,7 +103,7 @@ Las competencias públicas no tienen miembros: cualquiera participa sin unirse.
 
 ## Modelo de datos
 
-Nueve tablas en `public`, cuatro de ellas nuevas. Los nombres de la v1 se conservan: `rounds` sigue siendo la tabla de competencias.
+Diez tablas en `public`, cinco de ellas nuevas. Los nombres de la v1 se conservan: `rounds` sigue siendo la tabla de competencias.
 
 | Tabla | Propósito | Lectura (RLS) |
 | --- | --- | --- |
@@ -114,10 +114,13 @@ Nueve tablas en `public`, cuatro de ellas nuevas. Los nombres de la v1 se conser
 | `round_invites` | Token del enlace de invitación, uno por competencia | Dueño o superadmin |
 | `access_requests` | Solicitudes de acceso | Quien la pidió, el dueño o superadmin |
 | `round_archives` | Exportación a Drive y foto del resultado al limpiar | `can_view_round(round_id)`; `drive_url` solo se expone al superadmin vía RPC |
+| `round_deletions` | Quién borró cada competencia, para que pueda limpiar sus archivos de Storage | Sin políticas (la usan las políticas de Storage) |
 | `submissions` | Sin cambios de columnas | `can_view_round(round_id)` |
 | `votes` | Sin cambios de columnas | `can_view_round(round_id)` |
 
-El token de invitación y el enlace a Drive van en tablas aparte porque `rounds` la lee todo Kelsoft y RLS filtra filas, no columnas.
+El token de invitación y el enlace a Drive van en tablas aparte porque `rounds` la lee todo Kelsoft y RLS filtra filas, no columnas. En `round_archives`, además, `authenticated` solo tiene permiso de lectura sobre `round_id`, `exported_at` y `snapshot`.
+
+`round_deletions` existe porque, al borrar una competencia, la fila desaparece y quien la borró deja de ser su dueño: sin esa anotación no podría listar ni borrar los archivos de los demás participantes.
 
 Esquema de referencia de lo nuevo:
 
@@ -229,7 +232,7 @@ Siguen vigentes las reglas de la v1: toda escritura por RPC `security definer` c
 | `set_round_status(p_round_id, p_status)` | Dueño | Solo transiciones permitidas |
 | `finalize_round(p_round_id, p_winner_submission_id)` | Dueño | Estado `closed`; el ganador es de esa competencia |
 | `delete_submission(p_submission_id)` | Dueño o superadmin | Cualquier estado; si era la ganadora, vuelve a `closed`; devuelve la ruta |
-| `delete_round(p_round_id)` | Dueño o superadmin | Borra todo; devuelve el id para limpiar Storage |
+| `delete_round(p_round_id)` | Dueño o superadmin | Borra todo y anota quién la borró en `round_deletions`; devuelve el id para limpiar Storage |
 | `round_stats(p_round_id)` | Dueño o superadmin | Participantes, publicaciones y votos emitidos |
 
 **RPC de miembros**
@@ -238,7 +241,7 @@ Siguen vigentes las reglas de la v1: toda escritura por RPC `security definer` c
 | --- | --- | --- |
 | `get_invite_link(p_round_id)` | Dueño | Devuelve el token. Solo en privadas |
 | `regenerate_invite_link(p_round_id)` | Dueño | Cambia el token; devuelve el nuevo |
-| `join_with_invite(p_token)` | Usuario | Lo agrega como miembro (`invite_link`); devuelve el id de la competencia. Si ya era miembro o dueño, solo devuelve el id. Si tenía una solicitud pendiente, la marca aprobada |
+| `join_with_invite(p_token)` | Usuario | El token llega como texto desde la URL; si no es un uuid válido, `INVALID_INVITE`. Lo agrega como miembro (`invite_link`); devuelve el id de la competencia. Si ya era miembro o dueño, solo devuelve el id. Si tenía una solicitud pendiente, la marca aprobada |
 | `add_member(p_round_id, p_user_id)` | Dueño | Agrega (`added`); si había solicitud pendiente, la aprueba |
 | `remove_member(p_round_id, p_user_id)` | Dueño | Borra su publicación y sus votos en esa competencia; devuelve la ruta de la imagen, si había |
 | `leave_round(p_round_id)` | Miembro | Igual que `remove_member` sobre sí mismo |
@@ -254,7 +257,7 @@ Siguen vigentes las reglas de la v1: toda escritura por RPC `security definer` c
 | `admin_clean_round(p_round_id)` | Exige más de 60 días sin actividad y la exportación registrada. Guarda la foto del resultado en `round_archives.snapshot`, borra publicaciones, votos, miembros y solicitudes, y marca `cleaned_at`. Devuelve el id para limpiar Storage |
 | `admin_archives()` | Lápidas con su `drive_url`, para el panel |
 
-**Códigos de error nuevos:** `NO_ACCESS`, `NOT_OWNER`, `ROUND_NOT_FOUND`, `ROUND_LIMIT`, `ROUND_CLEANED`, `VISIBILITY_LOCKED`, `NOT_PRIVATE`, `INVALID_INVITE`, `ALREADY_HAS_ACCESS`, `REQUEST_PENDING`, `NO_REQUEST`, `NOT_MEMBER`, `NOT_INACTIVE`, `NOT_EXPORTED`. Se elimina `ROUND_NOT_ARCHIVED`. `NOT_ADMIN` se mantiene para las RPC del superadmin.
+**Códigos de error nuevos:** `NO_ACCESS`, `NOT_OWNER`, `ROUND_NOT_FOUND`, `ROUND_LIMIT`, `ROUND_CLEANED`, `VISIBILITY_LOCKED`, `NOT_PRIVATE`, `INVALID_INVITE`, `ALREADY_HAS_ACCESS`, `REQUEST_PENDING`, `NO_REQUEST`, `NOT_MEMBER`, `USER_NOT_FOUND`, `NOT_INACTIVE`, `NOT_EXPORTED`. Se elimina `ROUND_NOT_ARCHIVED`. `NOT_ADMIN` se mantiene para las RPC del superadmin.
 
 | Código | Mensaje |
 | --- | --- |
@@ -266,10 +269,11 @@ Siguen vigentes las reglas de la v1: toda escritura por RPC `security definer` c
 | `VISIBILITY_LOCKED` | La visibilidad solo se cambia antes de abrir la competencia |
 | `NOT_PRIVATE` | Esta competencia es pública: no hace falta pedir acceso |
 | `INVALID_INVITE` | El enlace de invitación no es válido o fue reemplazado |
-| `ALREADY_HAS_ACCESS` | Ya tienes acceso a esta competencia |
+| `ALREADY_HAS_ACCESS` | Ya tiene acceso a esta competencia (sirve para uno mismo y para la persona que el dueño quiere agregar) |
 | `REQUEST_PENDING` | Ya pediste acceso: espera la respuesta |
 | `NO_REQUEST` | La solicitud ya no está pendiente |
 | `NOT_MEMBER` | Esa persona no es miembro |
+| `USER_NOT_FOUND` | Esa persona todavía no inició sesión en el Tablón |
 | `NOT_INACTIVE` | La competencia tuvo actividad en los últimos 60 días |
 | `NOT_EXPORTED` | Exporta la competencia antes de limpiarla |
 
@@ -279,9 +283,11 @@ El bucket y la ruta `{round_id}/{user_id}/{uuid}.webp` no cambian, así que la m
 
 **Políticas sobre `storage.objects`** (bucket `submissions`). La primera carpeta se convierte a `uuid` con una función segura que devuelve `null` si no es válida.
 
-- `select`: `can_view_round(primera carpeta)`.
-- `insert`: `is_allowed_user()`, segunda carpeta igual a `auth.uid()`, competencia `open` y `can_view_round`.
-- `delete`: segunda carpeta igual a `auth.uid()` y ninguna publicación referencia el archivo (como en la v1); o `is_round_owner(primera carpeta)`; o `is_admin()`.
+`can_manage_round_files(round_id)` es verdadera para el superadmin, el dueño y quien borró la competencia (según `round_deletions`).
+
+- `select`: `can_view_round(primera carpeta)` o `can_manage_round_files(primera carpeta)`.
+- `insert`: `is_allowed_user()`, segunda carpeta igual a `auth.uid()`, competencia `open` y sin limpiar, y `can_view_round`.
+- `delete`: el superadmin, cualquier archivo. Los demás, solo archivos que **ninguna publicación referencia**: el usuario en su carpeta (como en la v1), y el dueño o quien borró la competencia en toda la carpeta de ella. Así nadie rompe una imagen en uso, y alcanza para limpiar, porque las RPC sacan la referencia antes de que el cliente borre el archivo.
 
 **Flujos que borran archivos:** `delete_round` y `admin_clean_round` borran todo bajo `{round_id}/` en lotes de 100, como la v1. `remove_member`, `leave_round` y `delete_submission` borran la ruta devuelta.
 
