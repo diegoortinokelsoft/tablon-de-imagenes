@@ -412,7 +412,7 @@ Una migración de datos, sin mover archivos:
 **Entorno.** La v2 se desarrolla sobre el **mismo proyecto de Supabase** de la v1. Las migraciones de la v2 cambian las firmas de las RPC, así que desde que se aplica la primera, el frontend v1 publicado en Netlify deja de funcionar hasta la entrega. Por eso:
 
 1. Antes de la Fase 2 se avisa a los usuarios que la app queda fuera de uso hasta la v2.
-2. Antes de aplicar `0008_v2_schema.sql` se hace un respaldo de los datos con `npx supabase db dump --linked --data-only -f backup-v1.sql`, guardado fuera del repo. Esa migración convierte datos reales (estados, dueños) y es la única difícil de deshacer.
+2. Antes de aplicar `0008_v2_schema.sql` se hace un respaldo de los datos, guardado fuera del repo: cada tabla de `public` exportada a JSON con `npx supabase db query --linked "select * from public.<tabla>" -o json` (`db dump` necesita Docker). Hecho el 24/10/2026 en `Documents/tablon-respaldos/backup-v1-2026-10-24/`. Esa migración convierte datos reales (estados, dueños) y es la única difícil de deshacer.
 3. Las imágenes de Storage no se tocan, así que no necesitan respaldo.
 
 ## Configuración
@@ -426,7 +426,7 @@ Una migración de datos, sin mover archivos:
 
 Se trabaja en una rama `v2` y se verifica cada fase con build, lint y tests antes de seguir.
 
-- [ ] **Fase 1. Preparación:** rama `v2`, aviso a los usuarios y respaldo de datos (ver "Entorno").
+- [x] **Fase 1. Preparación:** rama `v2`, aviso a los usuarios y respaldo de datos (ver "Entorno").
 - [ ] **Fase 2. Base de datos:** migraciones `0008_v2_schema.sql` (tipos, columnas, tablas, migración de datos), `0009_v2_access.sql` (`can_view_round`, `is_round_owner`, RLS, trigger de actividad), `0010_v2_rpc.sql` (RPC de participación, competencias y miembros; baja de las de la v1), `0011_v2_admin.sql` (RPC del superadmin), `0012_v2_storage.sql` y `0013_v2_realtime.sql`. `supabase/tests/rules.sql` suma casos para: privada sin acceso (leer, votar, subir), límite de 2 y exención del superadmin, visibilidad bloqueada fuera de `pending`, enlace regenerado, solicitudes duplicadas, quitar miembro devuelve votos, limpiar sin exportar o con actividad reciente, y `hub_rounds` sin filtrar datos de privadas.
 - [ ] **Fase 3. Rutas y competencia por id:** `/c/:roundId`, hooks parametrizados por competencia, canal Realtime `round:{id}` y redirecciones de `/historial`.
 - [ ] **Fase 4. Hub y creación:** `hub_rounds`, pestañas, buscador, tarjetas, modal de creación y límite.
