@@ -9,6 +9,7 @@ export async function publishSubmission(roundId: string, userId: string, title: 
   const path = buildImagePath(roundId, userId)
   await uploadImage(path, image.blob)
   const { data, error } = await supabase.rpc('create_submission', {
+    p_round_id: roundId,
     p_title: title.trim(),
     p_image_path: path,
     p_width: image.width,
@@ -26,6 +27,7 @@ export async function replaceSubmissionImage(roundId: string, userId: string, im
   const path = buildImagePath(roundId, userId)
   await uploadImage(path, image.blob)
   const { data: oldPath, error } = await supabase.rpc('replace_submission_image', {
+    p_round_id: roundId,
     p_image_path: path,
     p_width: image.width,
     p_height: image.height,
@@ -38,13 +40,13 @@ export async function replaceSubmissionImage(roundId: string, userId: string, im
 }
 
 /** Borrar: RPC → borrar la ruta devuelta. */
-export async function deleteMySubmission() {
-  const { data: path, error } = await supabase.rpc('delete_my_submission')
+export async function deleteMySubmission(roundId: string) {
+  const { data: path, error } = await supabase.rpc('delete_my_submission', { p_round_id: roundId })
   if (error) throw error
   await removeImages([path])
 }
 
-export async function updateSubmissionTitle(title: string) {
-  const { error } = await supabase.rpc('update_submission_title', { p_title: title.trim() })
+export async function updateSubmissionTitle(roundId: string, title: string) {
+  const { error } = await supabase.rpc('update_submission_title', { p_round_id: roundId, p_title: title.trim() })
   if (error) throw error
 }

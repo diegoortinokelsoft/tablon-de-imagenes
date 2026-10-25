@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
-import { History, LogOut, PanelLeftClose, PanelLeftOpen, Shield } from 'lucide-react'
-import { useCurrentRound } from '../hooks/useCurrentRound'
+import { Link, NavLink, useMatch } from 'react-router-dom'
+import { LayoutGrid, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Shield } from 'lucide-react'
 import { useIsAdmin } from '../hooks/useIsAdmin'
 import { useMyVotes } from '../hooks/useMyVotes'
+import { useRound, useRoundAccess } from '../hooks/useRound'
 import { useSession } from '../hooks/useSession'
 import { useSubmissionDrawer } from '../hooks/useSubmissionDrawer'
 import { signOut } from '../lib/auth'
@@ -97,8 +97,14 @@ function DrawerToggle() {
 }
 
 export default function Header() {
-  const { data: round } = useCurrentRound()
-  const { data: myVotes } = useMyVotes()
+  // Dentro de una competencia (/c/:roundId y sus subrutas) el encabezado muestra sus datos.
+  const roundId = useMatch('/c/:roundId/*')?.params.roundId
+  const { session } = useSession()
+  const { data: round } = useRound(roundId)
+  const { data: canView } = useRoundAccess(roundId)
+  const showVotes = !!round && round.status === 'open' && !round.cleaned_at && canView === true
+  const { data: myVotes } = useMyVotes(showVotes ? roundId : undefined)
+  const isOwner = !!round && round.owner_id === session?.user.id && !round.cleaned_at
   const { isAdmin } = useIsAdmin()
   const ref = useRef<HTMLElement>(null)
 
@@ -118,19 +124,29 @@ export default function Header() {
       <div className="mx-auto flex w-full max-w-screen-2xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
           <DrawerToggle />
-          <Link to="/" className="flex min-w-0 items-center gap-3">
-            <span className="min-w-0 truncate font-display text-section-title uppercase">
-              {round?.name ?? 'Tablón de Imágenes'}
-            </span>
-            {round && <StatusChip status={round.status} />}
-          </Link>
+          {round ? (
+            <Link to={`/c/${round.id}`} className="flex min-w-0 items-center gap-3">
+              <span className="min-w-0 truncate font-display text-section-title uppercase">{round.name}</span>
+              <StatusChip status={round.status} />
+            </Link>
+          ) : (
+            <Link to="/" className="min-w-0 truncate font-display text-section-title uppercase">
+              Tablón de Imágenes
+            </Link>
+          )}
         </div>
-        {myVotes && <VoteTokens left={myVotes.left} />}
+        {showVotes && myVotes && <VoteTokens left={myVotes.left} />}
         <nav className="ml-auto flex items-center gap-1 sm:ml-0" aria-label="Principal">
-          <NavLink to="/historial" className={navClass} aria-label="Historial">
-            <History className="h-5 w-5" strokeWidth={2.5} aria-hidden />
-            <span className="hidden sm:inline">Historial</span>
+          <NavLink to="/" end className={navClass} aria-label="Competencias">
+            <LayoutGrid className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+            <span className="hidden sm:inline">Competencias</span>
           </NavLink>
+          {isOwner && (
+            <NavLink to={`/c/${round.id}/gestion`} className={navClass} aria-label="Gestionar">
+              <Settings className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+              <span className="hidden sm:inline">Gestionar</span>
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink to="/admin" className={navClass} aria-label="Administración">
               <Shield className="h-5 w-5" strokeWidth={2.5} aria-hidden />

@@ -1,20 +1,18 @@
 import type { Database } from './database.types'
 
 export type RoundStatus = Database['public']['Enums']['round_status']
+export type RoundVisibility = Database['public']['Enums']['round_visibility']
 
 export const STATUS_LABELS: Record<RoundStatus, string> = {
   pending: 'Preparada',
   open: 'Abierta',
   closed: 'Cerrada',
   finalized: 'Finalizada',
-  archived: 'Historial',
 }
 
-/** Sugiere el nombre de la próxima competencia: "Competencia 1" → "Competencia 2". */
-export function suggestNextRoundName(current: string | undefined): string {
-  const match = current?.trim().match(/^(.*?)(\d+)$/)
-  if (!match) return 'Nueva competencia'
-  return `${match[1]}${Number(match[2]) + 1}`
+export const VISIBILITY_LABELS: Record<RoundVisibility, string> = {
+  public: 'Pública',
+  private: 'Privada',
 }
 
 const dateFormat = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long', year: 'numeric' })

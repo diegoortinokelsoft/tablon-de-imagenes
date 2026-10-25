@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { useIsAdmin } from '../hooks/useIsAdmin'
 import { useSession } from '../hooks/useSession'
 import FullScreenLoader from './FullScreenLoader'
@@ -18,4 +18,10 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   if (loading) return <FullScreenLoader />
   if (!isAdmin) return <Navigate to="/" replace />
   return children
+}
+
+/** /historial/:roundId de la v1 → /c/:roundId (una finalizada es su propio historial). */
+export function LegacyHistoryRedirect() {
+  const { roundId } = useParams()
+  return <Navigate to={roundId ? `/c/${roundId}` : '/'} replace />
 }

@@ -1,10 +1,10 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import App from './App'
-import { RequireAdmin } from './components/RouteGuards'
+import { LegacyHistoryRedirect, RequireAdmin } from './components/RouteGuards'
 import LoginPage from './pages/LoginPage'
-import BoardPage from './pages/BoardPage'
-import HistoryPage from './pages/HistoryPage'
-import HistoryDetailPage from './pages/HistoryDetailPage'
+import HubPage from './pages/HubPage'
+import RoundPage from './pages/RoundPage'
+import ManagePage from './pages/ManagePage'
 import AdminPage from './pages/AdminPage'
 import StylesPage from './pages/StylesPage'
 import ErrorPage from './pages/ErrorPage'
@@ -15,9 +15,11 @@ export const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorPage />,
     children: [
-      { path: '/', element: <BoardPage /> },
-      { path: '/historial', element: <HistoryPage /> },
-      { path: '/historial/:roundId', element: <HistoryDetailPage /> },
+      { path: '/', element: <HubPage /> },
+      { path: '/c/:roundId', element: <RoundPage /> },
+      { path: '/c/:roundId/gestion', element: <ManagePage /> },
+      { path: '/historial', element: <Navigate to="/" replace /> },
+      { path: '/historial/:roundId', element: <LegacyHistoryRedirect /> },
       {
         path: '/admin',
         element: (

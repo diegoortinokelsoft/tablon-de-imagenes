@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ImageOff } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Archive, ImageOff, Lock } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
 import Lightbox from '../components/Lightbox'
 import RoundResults from '../components/RoundResults'
 import { ErrorState, Loading } from '../components/StateMessages'
 import SubmissionCard from '../components/SubmissionCard'
 import SubmissionDrawer from '../components/SubmissionDrawer'
 import { useBoard } from '../hooks/useBoard'
-import { useCurrentRound } from '../hooks/useCurrentRound'
-import { useLatestArchivedRound } from '../hooks/useHistory'
 import { useMyVotes } from '../hooks/useMyVotes'
+import { useRoundRealtime, useRoundStatusNotice } from '../hooks/useRealtime'
+import { useRound, useRoundAccess } from '../hooks/useRound'
 import { useSession } from '../hooks/useSession'
 import { useSignedUrls } from '../hooks/useSignedUrls'
 import { useSubmissionDrawer } from '../hooks/useSubmissionDrawer'
@@ -20,12 +20,21 @@ import { SORT_LABELS, sortItems, type BoardItem, type SortOrder } from '../lib/b
 import { errorMessage } from '../lib/errors'
 import { supabase } from '../lib/supabase'
 
-function Notice({ title, children }: { title: string; children?: ReactNode }) {
+function Notice({ title, icon, children }: { title: string; icon?: ReactNode; children?: ReactNode }) {
   return (
     <div className="mx-auto flex max-w-modal flex-col items-center gap-3 py-12 text-center">
+      {icon}
       <h1 className="page-title">{title}</h1>
-      {children && <p className="text-body text-on-night-muted">{children}</p>}
+      {children && <div className="text-body text-on-night-muted">{children}</div>}
     </div>
+  )
+}
+
+function BackToHub() {
+  return (
+    <Link to="/" className="text-on-night underline">
+      Volver a las competencias
+    </Link>
   )
 }
 
@@ -34,7 +43,7 @@ function OpenBoard({ roundId }: { roundId: string }) {
   const { notify } = useToast()
   const queryClient = useQueryClient()
   const { data: items = [], isPending, isError, refetch } = useBoard(roundId)
-  const { data: myVotes } = useMyVotes()
+  const { data: myVotes } = useMyVotes(roundId)
   const { data: voters = {} } = useVoteDetails(roundId)
   const { data: urls = {} } = useSignedUrls(items.map((item) => item.imagePath))
   const [order, setOrder] = useState<SortOrder>('recent')
@@ -145,18 +154,62 @@ function OpenBoard({ roundId }: { roundId: string }) {
   )
 }
 
-export default function BoardPage() {
-  const { data: round, isPending, isError, refetch } = useCurrentRound()
+export default function RoundPage() {
+  const { roundId } = useParams()
+  const { data: round, isPending, isError, refetch } = useRound(roundId)
+  const access = useRoundAccess(roundId)
+  useRoundRealtime(roundId)
+  useRoundStatusNotice(round?.id, round?.status)
 
-  if (isPending) return <Loading />
-  if (isError) return <ErrorState message="No se pudo cargar la competencia." onRetry={() => void refetch()} />
+  if (isPending || (round && access.isPending)) return <Loading />
+  if (isError || access.isError) {
+    return (
+      <ErrorState
+        message="No se pudo cargar la competencia."
+        onRetry={() => {
+          void refetch()
+          void access.refetch()
+        }}
+      />
+    )
+  }
 
-  if (!round || round.status === 'pending') return <PendingView />
+  if (!round) {
+    return (
+      <Notice title="No encontramos esa competencia">
+        Puede que se haya borrado. <BackToHub />
+      </Notice>
+    )
+  }
+
+  if (round.cleaned_at) {
+    return (
+      <Notice title={round.name} icon={<Archive className="h-12 w-12 text-on-night-muted" strokeWidth={2.5} aria-hidden />}>
+        Esta competencia se archivó por inactividad. <BackToHub />
+      </Notice>
+    )
+  }
+
+  if (!access.data) {
+    return (
+      <Notice title={round.name} icon={<Lock className="h-12 w-12 text-on-night-muted" strokeWidth={2.5} aria-hidden />}>
+        Esta competencia es privada: solo la ven quienes tienen acceso. <BackToHub />
+      </Notice>
+    )
+  }
+
+  if (round.status === 'pending') {
+    return (
+      <Notice title="La competencia todavía no abrió">
+        Vuelve cuando la abran. <BackToHub />
+      </Notice>
+    )
+  }
 
   if (round.status === 'closed') {
     return (
       <div className="flex flex-col gap-8">
-        <Notice title="La votación está cerrada">El administrador va a elegir al ganador.</Notice>
+        <Notice title="La votación está cerrada">Quien creó la competencia va a elegir al ganador.</Notice>
         <RoundResults roundId={round.id} winnerId={null} />
       </div>
     )
@@ -166,24 +219,5 @@ export default function BoardPage() {
     return <RoundResults roundId={round.id} winnerId={round.winner_submission_id} />
   }
 
-  return <OpenBoard roundId={round.id} />
-}
-
-function PendingView() {
-  const { data: latest } = useLatestArchivedRound()
-  return (
-    <Notice title="La competencia todavía no abrió">
-      Vuelve cuando el administrador la abra.
-      {latest && (
-        <>
-          {' '}
-          Mientras tanto, mira el{' '}
-          <Link to={`/historial/${latest.id}`} className="text-on-night underline">
-            resultado de {latest.name}
-          </Link>
-          .
-        </>
-      )}
-    </Notice>
-  )
+  return <OpenBoard key={round.id} roundId={round.id} />
 }
