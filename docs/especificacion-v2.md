@@ -361,11 +361,12 @@ La sección "Para archivar" muestra cuántas competencias esperan y su tamaño a
 
 `/historial` y `/historial/:roundId` desaparecen; redirigen a `/` y a `/c/:roundId`.
 
-**Encabezado.** En el hub: título de la app, botón "Crear competencia", enlace a Admin (solo superadmin) y menú de avatar. Dentro de una competencia: enlace "← Competencias", nombre y chip de estado, fichas de voto y "Te quedan N de 3 votos" (solo con la competencia abierta y con acceso), botón "Gestionar" para el dueño, con el contador de solicitudes pendientes.
+**Encabezado.** Siempre: enlace "Competencias" (al hub), enlace a Admin (solo superadmin) y menú de avatar. Fuera de una competencia, el título de la app. Dentro de una competencia: nombre y chip de estado, fichas de voto y "Te quedan N de 3 votos" (solo con la competencia abierta y con acceso), botón "Gestionar" para el dueño, con el contador de solicitudes pendientes.
 
 **Hub.**
 
-- Buscador por nombre y cuatro pestañas:
+- Título "Competencias" con el botón "Crear competencia" a su lado.
+- Buscador por nombre (sin distinguir tildes ni mayúsculas) y cuatro pestañas. Arranca en "Mis competencias" si la persona participa en alguna; si no, en "Todas":
   - **Mis competencias:** las que tienen `my_involvement`.
   - **Abiertas.**
   - **Finalizadas.**
@@ -379,7 +380,7 @@ La sección "Para archivar" muestra cuántas competencias esperan y su tamaño a
 - Orden: abiertas primero; dentro de cada grupo, por actividad más reciente.
 - Estado vacío: "Todavía no hay competencias. ¡Crea la primera!".
 
-**Crear competencia.** Modal con nombre (contador 0/80), visibilidad (Pública / Privada, con una línea que explica cada una) y el aviso sobre el nombre. Muestra "Te quedan N de 2 competencias activas". Sin cupo, el botón del encabezado queda deshabilitado con el motivo en un tooltip. Al crear, navega a `/c/:roundId/gestion`.
+**Crear competencia.** Modal con nombre (contador 0/80), visibilidad (Pública / Privada, con una línea que explica cada una) y el aviso sobre el nombre. Muestra "Te quedan N de 2 competencias activas". Sin cupo, el botón queda deshabilitado y el motivo se muestra debajo del título (y en un tooltip). Al crear, navega a `/c/:roundId/gestion`.
 
 **Competencia sin acceso.** Tarjeta centrada con candado, nombre, dueño y estado, y el botón "Solicitar acceso" (o "Solicitud pendiente"). Si la competencia es privada y se llegó con un enlace válido, este paso no aparece.
 
@@ -435,8 +436,8 @@ Se trabaja en una rama `v2` y se verifica cada fase con build, lint y tests ante
 - [x] **Fase 1. Preparación:** rama `v2`, aviso a los usuarios y respaldo de datos (ver "Entorno").
 - [x] **Fase 2. Base de datos:** migraciones `0008_v2_schema.sql` (tipos, columnas, tablas, migración de datos), `0009_v2_access.sql` (`can_view_round`, `is_round_owner`, RLS, trigger de actividad), `0010_v2_rpc.sql` (RPC de participación, competencias y miembros; baja de las de la v1), `0011_v2_admin.sql` (RPC del superadmin), `0012_v2_storage.sql` y `0013_v2_realtime.sql`. `supabase/tests/rules.sql` suma casos para: privada sin acceso (leer, votar, subir), límite de 2 y exención del superadmin, visibilidad bloqueada fuera de `pending`, enlace regenerado, solicitudes duplicadas, quitar miembro devuelve votos, limpiar sin exportar o con actividad reciente, y `hub_rounds` sin filtrar datos de privadas.
 - [x] **Fase 3. Rutas y competencia por id:** `/c/:roundId`, hooks parametrizados por competencia, canal Realtime `round:{id}` y redirecciones de `/historial`.
-- [ ] **Fase 4. Hub y creación:** `hub_rounds`, pestañas, buscador, tarjetas, modal de creación y límite.
-- [ ] **Fase 5. Gestión del dueño:** panel `/c/:roundId/gestion` con estados, ganador, borrar publicaciones y borrar competencia.
+- [x] **Fase 4. Hub y creación:** `hub_rounds`, pestañas, buscador, tarjetas, modal de creación y límite.
+- [x] **Fase 5. Gestión del dueño:** panel `/c/:roundId/gestion` con estados, ganador, borrar publicaciones y borrar competencia.
 - [ ] **Fase 6. Privadas y miembros:** pantalla con candado, solicitudes, enlace de invitación, `/invitacion/:token`, agregar, quitar y salir.
 - [ ] **Fase 7. Imagen del resultado:** generador en canvas, modal de vista previa, copiar y descargar.
 - [ ] **Fase 8. Superadmin y archivo:** tabla de competencias, "Para archivar", ZIP, subida a Drive, limpieza y lápidas.
