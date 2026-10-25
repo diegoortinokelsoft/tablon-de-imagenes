@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import HubPage from './pages/HubPage'
 import RoundPage from './pages/RoundPage'
 import ManagePage from './pages/ManagePage'
+import JoinPage from './pages/JoinPage'
 import AdminPage from './pages/AdminPage'
 import StylesPage from './pages/StylesPage'
 import ErrorPage from './pages/ErrorPage'
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: '/', element: <HubPage /> },
       { path: '/c/:roundId', element: <RoundPage /> },
       { path: '/c/:roundId/gestion', element: <ManagePage /> },
+      { path: '/invitacion/:token', element: <JoinPage /> },
       { path: '/historial', element: <Navigate to="/" replace /> },
       { path: '/historial/:roundId', element: <LegacyHistoryRedirect /> },
       {

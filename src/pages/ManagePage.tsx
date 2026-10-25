@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ArrowLeft, Globe, Lock, Trash2, Trophy } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, Copy, Globe, Lock, RefreshCw, Search, Trash2, Trophy, UserPlus, X } from 'lucide-react'
+import Avatar from '../components/Avatar'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Lightbox from '../components/Lightbox'
 import RankingList from '../components/RankingList'
 import { ErrorState, Loading } from '../components/StateMessages'
 import StatusChip from '../components/StatusChip'
 import { useBoard } from '../hooks/useBoard'
+import { useInviteToken, useMembers, usePendingRequests, useProfileSearch, type Person } from '../hooks/useMembers'
 import { useRoundRealtime } from '../hooks/useRealtime'
 import { useRound, useRoundStats, type Round, type RoundStatus } from '../hooks/useRound'
 import { useSession } from '../hooks/useSession'
@@ -16,6 +18,7 @@ import { useToast } from '../hooks/useToast'
 import { tiedPositions, type BoardItem } from '../lib/board'
 import { errorMessage } from '../lib/errors'
 import { VISIBILITY_LABELS, type RoundVisibility } from '../lib/labels'
+import { addMember, inviteUrl, regenerateInviteToken, removeMember, resolveAccessRequest } from '../lib/members'
 import { HUB_QUERY_KEYS, ROUND_QUERY_KEYS } from '../lib/realtime'
 import { deleteRound, deleteSubmission, finalizeRound, renameRound, setRoundStatus, setRoundVisibility } from '../lib/rounds'
 
@@ -55,7 +58,9 @@ function useManageAction() {
         return false
       } finally {
         await Promise.all(
-          [...ROUND_QUERY_KEYS, ...HUB_QUERY_KEYS].map((k) => queryClient.invalidateQueries({ queryKey: [k] })),
+          [...ROUND_QUERY_KEYS, ...HUB_QUERY_KEYS, 'profile_search'].map((k) =>
+            queryClient.invalidateQueries({ queryKey: [k] }),
+          ),
         )
         setBusy(null)
       }
@@ -316,6 +321,226 @@ function SubmissionsPanel({ round }: { round: Round }) {
   )
 }
 
+const SOURCE_LABELS = {
+  invite_link: 'Con enlace',
+  added: 'Agregado por ti',
+  request: 'Por solicitud',
+} as const
+
+function PersonRow({ person, children }: { person: Person; children?: ReactNode }) {
+  return (
+    <li className="flex flex-wrap items-center gap-3 rounded-btn bg-surface-alt p-3">
+      <Avatar name={person.name} url={person.avatar} />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-body">{person.name}</span>
+        <span className="truncate text-secondary text-ink-muted">{person.email}</span>
+      </span>
+      {children}
+    </li>
+  )
+}
+
+function InviteLink({ round }: { round: Round }) {
+  const { busy, run } = useManageAction()
+  const { notify } = useToast()
+  const { data: token } = useInviteToken(round.id)
+  const [confirming, setConfirming] = useState(false)
+  const url = token ? inviteUrl(token) : ''
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url)
+      notify('Enlace copiado', 'success')
+    } catch {
+      notify('No se pudo copiar. Selecciona el enlace y cópialo a mano.', 'error')
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-label uppercase">Enlace de invitación</span>
+      <p className="text-secondary text-ink-muted">Quien lo abra entra sin pasar por tu aprobación.</p>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input className="input min-w-0 flex-1 text-secondary" value={url} readOnly aria-label="Enlace de invitación" />
+        <button type="button" className="btn btn-secondary" disabled={!url} onClick={() => void copy()}>
+          <Copy className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+          Copiar
+        </button>
+        <button
+          type="button"
+          className="btn btn-icon btn-secondary"
+          aria-label="Generar nuevo enlace"
+          title="Generar nuevo enlace"
+          disabled={busy !== null}
+          onClick={() => setConfirming(true)}
+        >
+          <RefreshCw strokeWidth={2.5} aria-hidden />
+        </button>
+      </div>
+      <ConfirmDialog
+        open={confirming}
+        title="¿Generar un enlace nuevo?"
+        confirmLabel={busy === 'regenerate' ? 'Generando…' : 'Generar'}
+        pending={busy === 'regenerate'}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() =>
+          void run('regenerate', () => regenerateInviteToken(round.id), 'Enlace nuevo generado').then(() =>
+            setConfirming(false),
+          )
+        }
+      >
+        El enlace anterior dejará de funcionar. Quienes ya entraron siguen siendo miembros.
+      </ConfirmDialog>
+    </div>
+  )
+}
+
+function AddMember({ round, memberIds }: { round: Round; memberIds: Set<string> }) {
+  const { busy, run } = useManageAction()
+  const [search, setSearch] = useState('')
+  const { data: results = [], isFetching } = useProfileSearch(search)
+  const candidates = results.filter((person) => person.id !== round.owner_id && !memberIds.has(person.id))
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="flex flex-col gap-2">
+        <span className="text-label uppercase">Agregar persona</span>
+        <span className="relative">
+          <Search
+            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted"
+            strokeWidth={2.5}
+            aria-hidden
+          />
+          <input
+            className="input pl-12"
+            type="search"
+            placeholder="Nombre o email"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </span>
+      </label>
+      <p className="text-secondary text-ink-muted">Aparecen quienes ya iniciaron sesión alguna vez en el Tablón.</p>
+      {search.trim().length >= 2 && (
+        <ul className="flex flex-col gap-2">
+          {candidates.map((person) => (
+            <PersonRow key={person.id} person={person}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={busy !== null}
+                onClick={() => void run(`add-${person.id}`, () => addMember(round.id, person.id), `${person.name} ya es miembro`)}
+              >
+                <UserPlus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                Agregar
+              </button>
+            </PersonRow>
+          ))}
+          {!isFetching && candidates.length === 0 && (
+            <li className="text-secondary text-ink-muted">No encontramos a nadie más con ese nombre o email.</li>
+          )}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function MembersPanel({ round }: { round: Round }) {
+  const { busy, run } = useManageAction()
+  const { data: members = [] } = useMembers(round.id)
+  const [toRemove, setToRemove] = useState<Person | null>(null)
+  const memberIds = new Set(members.map((member) => member.id))
+
+  return (
+    <Panel title="Miembros">
+      <InviteLink round={round} />
+      <AddMember round={round} memberIds={memberIds} />
+      <div className="flex flex-col gap-2">
+        <span className="text-label uppercase">
+          {members.length === 1 ? '1 miembro' : `${members.length} miembros`}
+        </span>
+        {members.length === 0 ? (
+          <p className="text-secondary text-ink-muted">Todavía no hay miembros: comparte el enlace o agrega personas.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {members.map((member) => (
+              <PersonRow key={member.id} person={member}>
+                <span className="chip chip-pending">{SOURCE_LABELS[member.source]}</span>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  disabled={busy !== null}
+                  onClick={() => setToRemove(member)}
+                >
+                  Quitar
+                </button>
+              </PersonRow>
+            ))}
+          </ul>
+        )}
+      </div>
+      <ConfirmDialog
+        open={toRemove !== null}
+        title="¿Quitar miembro?"
+        confirmLabel={busy === 'remove' ? 'Quitando…' : 'Quitar'}
+        danger
+        pending={busy === 'remove'}
+        onCancel={() => setToRemove(null)}
+        onConfirm={() =>
+          void run('remove', () => removeMember(round.id, toRemove!.id), 'Miembro quitado').then(() => setToRemove(null))
+        }
+      >
+        {toRemove?.name} pierde el acceso. Se borrarán su publicación y sus votos, y los votos que recibió vuelven a
+        quienes los dieron.
+      </ConfirmDialog>
+    </Panel>
+  )
+}
+
+function RequestsPanel({ round }: { round: Round }) {
+  const { busy, run } = useManageAction()
+  const { data: requests = [] } = usePendingRequests(round.id)
+
+  return (
+    <Panel title="Solicitudes">
+      {requests.length === 0 ? (
+        <p className="text-body text-ink-muted">No hay solicitudes pendientes.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {requests.map((request) => (
+            <PersonRow key={request.requestId} person={request}>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={busy !== null}
+                  onClick={() =>
+                    void run(`approve-${request.requestId}`, () => resolveAccessRequest(request.requestId, true), 'Solicitud aprobada')
+                  }
+                >
+                  <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                  Aprobar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={busy !== null}
+                  onClick={() =>
+                    void run(`reject-${request.requestId}`, () => resolveAccessRequest(request.requestId, false), 'Solicitud rechazada')
+                  }
+                >
+                  <X className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                  Rechazar
+                </button>
+              </div>
+            </PersonRow>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  )
+}
+
 function DangerZone({ round }: { round: Round }) {
   const { busy, run } = useManageAction()
   const navigate = useNavigate()
@@ -394,6 +619,12 @@ export default function ManagePage() {
         <h1 className="page-title">Gestionar</h1>
       </div>
       <RoundPanel key={`${round.id}-round`} round={round} />
+      {round.visibility === 'private' && (
+        <>
+          <RequestsPanel key={`${round.id}-requests`} round={round} />
+          <MembersPanel key={`${round.id}-members`} round={round} />
+        </>
+      )}
       <SubmissionsPanel key={`${round.id}-subs`} round={round} />
       <DangerZone key={`${round.id}-danger`} round={round} />
     </div>

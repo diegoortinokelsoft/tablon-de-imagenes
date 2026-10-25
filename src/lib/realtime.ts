@@ -1,7 +1,17 @@
 import type { RoundStatus } from './labels'
 
 // Consultas de una competencia que se vuelven a leer ante cualquier cambio en ella.
-export const ROUND_QUERY_KEYS = ['round', 'board', 'vote_details', 'my_votes', 'round_stats', 'round_access'] as const
+export const ROUND_QUERY_KEYS = [
+  'round',
+  'board',
+  'vote_details',
+  'my_votes',
+  'round_stats',
+  'round_access',
+  'round_members',
+  'access_requests',
+  'invite_token',
+] as const
 
 // Consultas del hub, que se vuelven a leer ante cambios en competencias, miembros o solicitudes.
 export const HUB_QUERY_KEYS = ['hub'] as const

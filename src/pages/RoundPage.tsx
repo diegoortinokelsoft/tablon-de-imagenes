@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Archive, ImageOff, Lock } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { Archive, Clock, ImageOff, Lock, LogOut } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import Avatar from '../components/Avatar'
+import ConfirmDialog from '../components/ConfirmDialog'
 import Lightbox from '../components/Lightbox'
 import RoundResults from '../components/RoundResults'
 import { ErrorState, Loading } from '../components/StateMessages'
 import SubmissionCard from '../components/SubmissionCard'
 import SubmissionDrawer from '../components/SubmissionDrawer'
 import { useBoard } from '../hooks/useBoard'
+import { useIsMember, useMyPendingRequest, useProfile } from '../hooks/useMembers'
 import { useMyVotes } from '../hooks/useMyVotes'
 import { useRoundRealtime, useRoundStatusNotice } from '../hooks/useRealtime'
-import { useRound, useRoundAccess } from '../hooks/useRound'
+import { useRound, useRoundAccess, type Round } from '../hooks/useRound'
 import { useSession } from '../hooks/useSession'
 import { useSignedUrls } from '../hooks/useSignedUrls'
 import { useSubmissionDrawer } from '../hooks/useSubmissionDrawer'
@@ -18,6 +21,8 @@ import { useToast } from '../hooks/useToast'
 import { useVoteDetails } from '../hooks/useVoteDetails'
 import { SORT_LABELS, sortItems, type BoardItem, type SortOrder } from '../lib/board'
 import { errorMessage } from '../lib/errors'
+import { STATUS_LABELS } from '../lib/labels'
+import { leaveRound, requestAccess } from '../lib/members'
 import { supabase } from '../lib/supabase'
 
 function Notice({ title, icon, children }: { title: string; icon?: ReactNode; children?: ReactNode }) {
@@ -35,6 +40,99 @@ function BackToHub() {
     <Link to="/" className="text-on-night underline">
       Volver a las competencias
     </Link>
+  )
+}
+
+/** Privada sin acceso: datos generales y "Solicitar acceso" (o "Solicitud pendiente"). */
+function LockedView({ round }: { round: Round }) {
+  const { notify } = useToast()
+  const queryClient = useQueryClient()
+  const { data: owner } = useProfile(round.owner_id)
+  const { data: pendingRequest, isPending } = useMyPendingRequest(round.id)
+  const [sending, setSending] = useState(false)
+
+  const ask = async () => {
+    setSending(true)
+    try {
+      await requestAccess(round.id)
+      notify('Solicitud enviada', 'success')
+    } catch (error) {
+      notify(errorMessage(error), 'error')
+    } finally {
+      await Promise.all(['access_requests', 'hub'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })))
+      setSending(false)
+    }
+  }
+
+  return (
+    <Notice title={round.name} icon={<Lock className="h-12 w-12 text-on-night-muted" strokeWidth={2.5} aria-hidden />}>
+      <div className="flex flex-col items-center gap-4">
+        <p>Esta competencia es privada: solo la ven quienes tienen acceso.</p>
+        <p className="flex flex-wrap items-center justify-center gap-2 text-secondary">
+          {owner && <Avatar name={owner.name} url={owner.avatar} on="night" />}
+          {owner ? `Creada por ${owner.name} · ${STATUS_LABELS[round.status]}` : STATUS_LABELS[round.status]}
+        </p>
+        {pendingRequest ? (
+          <p className="flex items-center gap-2 text-on-night">
+            <Clock className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+            Solicitud pendiente. La página se actualiza sola cuando la aprueben.
+          </p>
+        ) : (
+          <button type="button" className="btn btn-primary" disabled={isPending || sending} onClick={() => void ask()}>
+            {sending ? 'Enviando…' : 'Solicitar acceso'}
+          </button>
+        )}
+        <BackToHub />
+      </div>
+    </Notice>
+  )
+}
+
+/** Para miembros de una privada: salir borra su publicación y sus votos. */
+function LeaveRound({ roundId }: { roundId: string }) {
+  const { notify } = useToast()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+
+  const leave = async () => {
+    setLeaving(true)
+    try {
+      await leaveRound(roundId)
+      await queryClient.invalidateQueries()
+      notify('Saliste de la competencia', 'success')
+      navigate('/', { replace: true })
+    } catch (error) {
+      notify(errorMessage(error), 'error')
+      setLeaving(false)
+      setConfirming(false)
+    }
+  }
+
+  return (
+    <div className="flex justify-center pt-8">
+      <button
+        type="button"
+        className="flex items-center gap-2 text-secondary uppercase text-on-night-muted hover:text-on-night"
+        onClick={() => setConfirming(true)}
+      >
+        <LogOut className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+        Salir de la competencia
+      </button>
+      <ConfirmDialog
+        open={confirming}
+        title="¿Salir de la competencia?"
+        confirmLabel={leaving ? 'Saliendo…' : 'Salir'}
+        danger
+        pending={leaving}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => void leave()}
+      >
+        Se borrarán tu publicación y tus votos en esta competencia. Para volver a entrar vas a necesitar una invitación
+        o que aprueben tu solicitud.
+      </ConfirmDialog>
+    </div>
   )
 }
 
@@ -156,10 +254,22 @@ function OpenBoard({ roundId }: { roundId: string }) {
 
 export default function RoundPage() {
   const { roundId } = useParams()
+  const { notify } = useToast()
   const { data: round, isPending, isError, refetch } = useRound(roundId)
   const access = useRoundAccess(roundId)
+  const { data: isMember } = useIsMember(roundId, round?.visibility === 'private')
   useRoundRealtime(roundId)
   useRoundStatusNotice(round?.id, round?.status)
+
+  // Si le quitan el acceso mientras mira, la vista pasa al candado con un aviso.
+  const hadAccess = useRef<{ roundId: string; value: boolean } | null>(null)
+  useEffect(() => {
+    if (!roundId || access.data === undefined) return
+    if (hadAccess.current?.roundId === roundId && hadAccess.current.value && !access.data) {
+      notify('Ya no tienes acceso a esta competencia', 'info')
+    }
+    hadAccess.current = { roundId, value: access.data }
+  }, [roundId, access.data, notify])
 
   if (isPending || (round && access.isPending)) return <Loading />
   if (isError || access.isError) {
@@ -190,14 +300,18 @@ export default function RoundPage() {
     )
   }
 
-  if (!access.data) {
-    return (
-      <Notice title={round.name} icon={<Lock className="h-12 w-12 text-on-night-muted" strokeWidth={2.5} aria-hidden />}>
-        Esta competencia es privada: solo la ven quienes tienen acceso. <BackToHub />
-      </Notice>
-    )
-  }
+  if (!access.data) return <LockedView round={round} />
 
+  return (
+    <>
+      <RoundContent round={round} />
+      {isMember && <LeaveRound roundId={round.id} />}
+    </>
+  )
+}
+
+/** Contenido de una competencia con acceso, según su estado. */
+function RoundContent({ round }: { round: Round }) {
   if (round.status === 'pending') {
     return (
       <Notice title="La competencia todavía no abrió">

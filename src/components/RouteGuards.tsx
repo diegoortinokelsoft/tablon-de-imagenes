@@ -1,14 +1,29 @@
 import type { ReactNode } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useParams } from 'react-router-dom'
 import { useIsAdmin } from '../hooks/useIsAdmin'
 import { useSession } from '../hooks/useSession'
+import { clearRedirect, peekRedirect, rememberRedirect } from '../lib/auth'
 import FullScreenLoader from './FullScreenLoader'
 
-/** Solo usuarios con sesión; los demás van a /login. */
+/**
+ * Solo usuarios con sesión; los demás van a /login. La ruta pedida se recuerda y, al volver
+ * de Google (que siempre vuelve al inicio), se retoma: así funciona un enlace de invitación sin sesión.
+ */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useSession()
+  const location = useLocation()
+  const here = location.pathname + location.search
+
   if (loading) return <FullScreenLoader />
-  if (!session) return <Navigate to="/login" replace />
+  if (!session) {
+    rememberRedirect(here)
+    return <Navigate to="/login" replace />
+  }
+  const pending = peekRedirect()
+  if (pending) {
+    if (pending !== here) return <Navigate to={pending} replace />
+    clearRedirect()
+  }
   return children
 }
 

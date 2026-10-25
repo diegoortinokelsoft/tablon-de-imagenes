@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, NavLink, useMatch } from 'react-router-dom'
 import { LayoutGrid, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Shield } from 'lucide-react'
 import { useIsAdmin } from '../hooks/useIsAdmin'
+import { usePendingRequests } from '../hooks/useMembers'
 import { useMyVotes } from '../hooks/useMyVotes'
 import { useRound, useRoundAccess } from '../hooks/useRound'
 import { useSession } from '../hooks/useSession'
@@ -105,6 +106,7 @@ export default function Header() {
   const showVotes = !!round && round.status === 'open' && !round.cleaned_at && canView === true
   const { data: myVotes } = useMyVotes(showVotes ? roundId : undefined)
   const isOwner = !!round && round.owner_id === session?.user.id && !round.cleaned_at
+  const { data: requests = [] } = usePendingRequests(roundId, isOwner && round?.visibility === 'private')
   const { isAdmin } = useIsAdmin()
   const ref = useRef<HTMLElement>(null)
 
@@ -142,9 +144,18 @@ export default function Header() {
             <span className="hidden sm:inline">Competencias</span>
           </NavLink>
           {isOwner && (
-            <NavLink to={`/c/${round.id}/gestion`} className={navClass} aria-label="Gestionar">
+            <NavLink
+              to={`/c/${round.id}/gestion`}
+              className={navClass}
+              aria-label={requests.length > 0 ? `Gestionar (${requests.length} solicitudes pendientes)` : 'Gestionar'}
+            >
               <Settings className="h-5 w-5" strokeWidth={2.5} aria-hidden />
               <span className="hidden sm:inline">Gestionar</span>
+              {requests.length > 0 && (
+                <span className="chip bg-vote px-2 py-0 text-ink" aria-hidden>
+                  {requests.length}
+                </span>
+              )}
             </NavLink>
           )}
           {isAdmin && (
