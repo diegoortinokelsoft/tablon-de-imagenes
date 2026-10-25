@@ -9,6 +9,7 @@ import RankingList from '../components/RankingList'
 import { ErrorState, Loading } from '../components/StateMessages'
 import StatusChip from '../components/StatusChip'
 import { useBoard } from '../hooks/useBoard'
+import { useIsAdmin } from '../hooks/useIsAdmin'
 import { useInviteToken, useMembers, usePendingRequests, useProfileSearch, type Person } from '../hooks/useMembers'
 import { useRoundRealtime } from '../hooks/useRealtime'
 import { useRound, useRoundStats, type Round, type RoundStatus } from '../hooks/useRound'
@@ -209,7 +210,8 @@ function RoundPanel({ round }: { round: Round }) {
   )
 }
 
-function SubmissionsPanel({ round }: { round: Round }) {
+/** Publicaciones con "Borrar". El dueño además elige al ganador con la competencia cerrada (canFinalize). */
+function SubmissionsPanel({ round, canFinalize }: { round: Round; canFinalize: boolean }) {
   const { busy, run } = useManageAction()
   const { data: items = [] } = useBoard(round.id)
   const { data: urls = {} } = useSignedUrls(items.map((item) => item.imagePath))
@@ -219,7 +221,7 @@ function SubmissionsPanel({ round }: { round: Round }) {
   const [lightbox, setLightbox] = useState<BoardItem | null>(null)
   const closeLightbox = useCallback(() => setLightbox(null), [])
 
-  const choosing = round.status === 'closed'
+  const choosing = canFinalize && round.status === 'closed'
   const tieAtTop = tiedPositions(items).has(1)
   const winner = items.find((item) => item.id === winnerId)
 
@@ -556,7 +558,7 @@ function DangerZone({ round }: { round: Round }) {
     <Panel title="Zona de peligro" tone="danger">
       <p className="text-body text-ink-muted">
         Borrar la competencia elimina definitivamente "{round.name}" con todas sus publicaciones, votos e imágenes, y
-        libera tu cupo de competencias activas.
+        libera el cupo de competencias activas de quien la creó.
       </p>
       <button type="button" className="btn btn-danger self-start" disabled={busy !== null} onClick={() => setOpen(true)}>
         Borrar competencia
@@ -597,12 +599,15 @@ export default function ManagePage() {
   const { roundId } = useParams()
   const { session } = useSession()
   const { data: round, isPending, isError, refetch } = useRound(roundId)
+  const { isAdmin, loading: adminLoading } = useIsAdmin()
   useRoundRealtime(roundId)
 
-  if (isPending) return <Loading />
+  if (isPending || adminLoading) return <Loading />
   if (isError) return <ErrorState message="No se pudo cargar la competencia." onRetry={() => void refetch()} />
-  // Solo el dueño gestiona (las RPC lo verifican igual); los demás vuelven a la competencia.
-  if (!round || round.owner_id !== session?.user.id || round.cleaned_at) {
+  // El dueño gestiona todo; el superadmin solo modera (borrar publicaciones o la competencia).
+  // Los demás vuelven a la competencia. Las RPC lo verifican igual.
+  const isOwner = round?.owner_id === session?.user.id
+  if (!round || (!isOwner && !isAdmin) || round.cleaned_at) {
     return <Navigate to={roundId ? `/c/${roundId}` : '/'} replace />
   }
 
@@ -616,16 +621,16 @@ export default function ManagePage() {
           <ArrowLeft className="h-5 w-5" strokeWidth={2.5} aria-hidden />
           Ver competencia
         </Link>
-        <h1 className="page-title">Gestionar</h1>
+        <h1 className="page-title">{isOwner ? 'Gestionar' : 'Moderar'}</h1>
       </div>
-      <RoundPanel key={`${round.id}-round`} round={round} />
-      {round.visibility === 'private' && (
+      {isOwner && <RoundPanel key={`${round.id}-round`} round={round} />}
+      {isOwner && round.visibility === 'private' && (
         <>
           <RequestsPanel key={`${round.id}-requests`} round={round} />
           <MembersPanel key={`${round.id}-members`} round={round} />
         </>
       )}
-      <SubmissionsPanel key={`${round.id}-subs`} round={round} />
+      <SubmissionsPanel key={`${round.id}-subs`} round={round} canFinalize={isOwner} />
       <DangerZone key={`${round.id}-danger`} round={round} />
     </div>
   )

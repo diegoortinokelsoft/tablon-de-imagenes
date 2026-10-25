@@ -1,4 +1,4 @@
-import { initials, formatDate } from './labels'
+import { formatDate, initials, slugify } from './labels'
 import { ordinal, votesLabel, type Podium } from './podium'
 
 // Imagen del resultado para pegar en Slack (1200 × 630, PNG), dibujada en el navegador con canvas.
@@ -173,10 +173,21 @@ export interface ResultImageData {
   finalizedAt: string | null
   podium: Podium
   winnerImageUrl: string | undefined
+  /** Título sobre la imagen: "¡GANADOR!" o, en el resumen de una competencia sin ganador, "MÁS VOTADA". */
+  headline?: string
+  /** Texto del pie a la derecha cuando no hay fecha de finalización (por ejemplo, el estado). */
+  note?: string
 }
 
 /** Dibuja la imagen del resultado y la devuelve como PNG. */
-export async function renderResultImage({ roundName, finalizedAt, podium, winnerImageUrl }: ResultImageData): Promise<Blob> {
+export async function renderResultImage({
+  roundName,
+  finalizedAt,
+  podium,
+  winnerImageUrl,
+  headline = '¡GANADOR!',
+  note,
+}: ResultImageData): Promise<Blob> {
   const { winner, rest, more } = podium
   const [, image, avatar, pattern] = await Promise.all([
     loadFonts(),
@@ -204,7 +215,7 @@ export async function renderResultImage({ roundName, finalizedAt, podium, winner
   ctx.fillText(fitText(roundName.toUpperCase(), contentWidth, measure), margin, 56)
   ctx.fillStyle = RESULT_COLORS.sun
   ctx.font = `56px ${FONT_DISPLAY}`
-  ctx.fillText('¡GANADOR!', margin, 114)
+  ctx.fillText(headline, margin, 114)
 
   // Imagen ganadora (16:10).
   const box = { x: margin, y: 136, w: 528, h: 330 }
@@ -268,10 +279,11 @@ export async function renderResultImage({ roundName, finalizedAt, podium, winner
   ctx.fillStyle = RESULT_COLORS.onNightMuted
   ctx.font = `800 16px ${FONT_BODY}`
   ctx.fillText('TABLÓN DE IMÁGENES · GRUPO KELSOFT', margin, 608)
-  if (finalizedAt) {
+  const footerRight = finalizedAt ? `Finalizada el ${formatDate(finalizedAt)}` : note
+  if (footerRight) {
     ctx.textAlign = 'right'
     ctx.font = `600 16px ${FONT_BODY}`
-    ctx.fillText(`Finalizada el ${formatDate(finalizedAt)}`, RESULT_WIDTH - margin, 608)
+    ctx.fillText(footerRight, RESULT_WIDTH - margin, 608)
   }
 
   return new Promise((resolve, reject) =>
@@ -303,11 +315,5 @@ export function downloadBlob(blob: Blob, filename: string) {
 
 /** Nombre de archivo a partir del nombre de la competencia: "Mejor fondo!" → "resultado-mejor-fondo.png". */
 export function resultFilename(roundName: string): string {
-  const slug = roundName
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-  return `resultado-${slug || 'competencia'}.png`
+  return `resultado-${slugify(roundName) || 'competencia'}.png`
 }

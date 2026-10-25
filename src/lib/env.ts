@@ -2,6 +2,8 @@ export interface AppEnv {
   supabaseUrl: string
   supabaseAnonKey: string
   allowedDomain: string
+  /** Client ID de OAuth para subir exportaciones a Drive; null si no está configurado. */
+  googleClientId: string | null
 }
 
 type RawEnv = Partial<Record<keyof ImportMetaEnv, string | undefined>>
@@ -18,6 +20,7 @@ export function readEnv(raw: RawEnv): AppEnv {
     supabaseUrl: raw.VITE_SUPABASE_URL!.trim(),
     supabaseAnonKey: raw.VITE_SUPABASE_ANON_KEY!.trim(),
     allowedDomain: raw.VITE_ALLOWED_DOMAIN!.trim().toLowerCase(),
+    googleClientId: raw.VITE_GOOGLE_CLIENT_ID?.trim() || null,
   }
 }
 

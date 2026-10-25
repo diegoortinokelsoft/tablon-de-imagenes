@@ -158,6 +158,12 @@ export default function Header() {
               )}
             </NavLink>
           )}
+          {!isOwner && isAdmin && round && !round.cleaned_at && (
+            <NavLink to={`/c/${round.id}/gestion`} className={navClass} aria-label="Moderar">
+              <Settings className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+              <span className="hidden sm:inline">Moderar</span>
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink to="/admin" className={navClass} aria-label="Administración">
               <Shield className="h-5 w-5" strokeWidth={2.5} aria-hidden />

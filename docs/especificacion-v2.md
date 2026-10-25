@@ -405,7 +405,7 @@ La sección "Para archivar" muestra cuántas competencias esperan y su tamaño a
 
 - Todas las competencias en una tabla con dueño, visibilidad, estado y última actividad, con enlace y "Borrar".
 - Sección "Para archivar" y sección "Archivadas", como se describe en "Archivo y limpieza".
-- El superadmin modera publicaciones entrando a cada competencia: ahí ve "Borrar" en cada tarjeta.
+- El superadmin modera publicaciones entrando a cada competencia: el encabezado le muestra "Moderar", que abre `/c/:roundId/gestion` en modo moderación (solo las publicaciones con "Borrar" y la zona de peligro; sin estados, visibilidad, miembros ni elección de ganador).
 
 ## Migración desde la v1
 
@@ -425,7 +425,7 @@ Una migración de datos, sin mover archivos:
 ## Configuración
 
 - **Google Cloud:** habilitar la Google Drive API y agregar el permiso `https://www.googleapis.com/auth/drive.file` a la pantalla de consentimiento. Con la pantalla "Interna" no hace falta verificación.
-- **Nueva variable de entorno:** `VITE_GOOGLE_CLIENT_ID`, el Client ID del cliente OAuth (es público). Se usa solo en el panel del superadmin.
+- **Nueva variable de entorno, opcional:** `VITE_GOOGLE_CLIENT_ID`, el Client ID del cliente OAuth (es público). Se usa solo en el panel del superadmin. Sin ella, "Para archivar" solo ofrece "Descargar ZIP" y avisa que falta configurarla.
 - **Origen autorizado de JavaScript** en el cliente OAuth: la URL de Netlify y `http://localhost:5173`.
 - **Dependencias nuevas:** `fflate` (ZIP). Google Identity Services se carga con `<script src="https://accounts.google.com/gsi/client">` solo al abrir el panel del superadmin.
 
@@ -440,7 +440,7 @@ Se trabaja en una rama `v2` y se verifica cada fase con build, lint y tests ante
 - [x] **Fase 5. Gestión del dueño:** panel `/c/:roundId/gestion` con estados, ganador, borrar publicaciones y borrar competencia.
 - [x] **Fase 6. Privadas y miembros:** pantalla con candado, solicitudes, enlace de invitación, `/invitacion/:token`, agregar, quitar y salir.
 - [x] **Fase 7. Imagen del resultado:** generador en canvas, modal de vista previa, copiar y descargar.
-- [ ] **Fase 8. Superadmin y archivo:** tabla de competencias, "Para archivar", ZIP, subida a Drive, limpieza y lápidas.
+- [x] **Fase 8. Superadmin y archivo:** tabla de competencias, "Para archivar", ZIP, subida a Drive, limpieza y lápidas.
 - [ ] **Fase 9. Entrega:** pulido, estados vacíos, README, desplegar el frontend v2 en Netlify y actualizar `CLAUDE.md` y `docs/especificacion.md`.
 
 ## Criterios de aceptación
