@@ -439,7 +439,7 @@ Se trabaja en una rama `v2` y se verifica cada fase con build, lint y tests ante
 - [x] **Fase 4. Hub y creación:** `hub_rounds`, pestañas, buscador, tarjetas, modal de creación y límite.
 - [x] **Fase 5. Gestión del dueño:** panel `/c/:roundId/gestion` con estados, ganador, borrar publicaciones y borrar competencia.
 - [x] **Fase 6. Privadas y miembros:** pantalla con candado, solicitudes, enlace de invitación, `/invitacion/:token`, agregar, quitar y salir.
-- [ ] **Fase 7. Imagen del resultado:** generador en canvas, modal de vista previa, copiar y descargar.
+- [x] **Fase 7. Imagen del resultado:** generador en canvas, modal de vista previa, copiar y descargar.
 - [ ] **Fase 8. Superadmin y archivo:** tabla de competencias, "Para archivar", ZIP, subida a Drive, limpieza y lápidas.
 - [ ] **Fase 9. Entrega:** pulido, estados vacíos, README, desplegar el frontend v2 en Netlify y actualizar `CLAUDE.md` y `docs/especificacion.md`.
 

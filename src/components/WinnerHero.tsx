@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Trophy } from 'lucide-react'
+import { Share2, Trophy } from 'lucide-react'
 import type { BoardItem } from '../lib/board'
 import Avatar from './Avatar'
 
@@ -35,11 +35,13 @@ interface WinnerHeroProps {
   item: BoardItem
   imageUrl: string | undefined
   onOpen: () => void
-  /** El confeti solo se muestra en la competencia actual, no en el historial. */
+  /** El confeti se muestra una vez al entrar a la competencia finalizada. */
   celebrate?: boolean
+  /** Abre "Compartir resultado" (imagen para Slack). */
+  onShare?: () => void
 }
 
-export default function WinnerHero({ item, imageUrl, onOpen, celebrate = true }: WinnerHeroProps) {
+export default function WinnerHero({ item, imageUrl, onOpen, celebrate = true, onShare }: WinnerHeroProps) {
   return (
     <section className="flex animate-bounce-in flex-col items-center gap-6 text-center" aria-labelledby="titulo-ganador">
       {celebrate && <Confetti />}
@@ -71,6 +73,12 @@ export default function WinnerHero({ item, imageUrl, onOpen, celebrate = true }:
         >
           {item.voteCount}
         </span>
+        {onShare && (
+          <button type="button" className="btn btn-secondary mt-3" onClick={onShare}>
+            <Share2 className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+            Compartir resultado
+          </button>
+        )}
       </div>
     </section>
   )

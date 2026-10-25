@@ -330,7 +330,14 @@ function RoundContent({ round }: { round: Round }) {
   }
 
   if (round.status === 'finalized') {
-    return <RoundResults roundId={round.id} winnerId={round.winner_submission_id} />
+    return (
+      <RoundResults
+        roundId={round.id}
+        winnerId={round.winner_submission_id}
+        roundName={round.name}
+        finalizedAt={round.finalized_at}
+      />
+    )
   }
 
   return <OpenBoard key={round.id} roundId={round.id} />
