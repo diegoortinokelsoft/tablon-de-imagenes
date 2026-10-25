@@ -1,8 +1,8 @@
 # Frontend: arquitectura y experiencia de uso
 
-Documento técnico de la SPA del Tablón de Imágenes: cómo está organizada, cómo fluyen los datos y cómo está pensada la experiencia en cada pantalla. El backend está en [supabase.md](supabase.md) y la especificación funcional en [especificacion.md](especificacion.md).
+Documento técnico de la SPA del Tablón de Imágenes: cómo está organizada, cómo fluyen los datos y cómo está pensada la experiencia en cada pantalla. El backend está en [supabase.md](supabase.md) y la especificación funcional en [especificacion-v2.md](especificacion-v2.md).
 
-> **Estado:** en producción en Netlify desde octubre de 2026 (primera etapa).
+> **Estado:** v2 (competencias múltiples) en la rama `v2`, octubre de 2026. La v1 estuvo en producción en Netlify desde octubre de 2026.
 
 ## 1. Stack y principios
 
@@ -39,10 +39,17 @@ src/
 │  ├─ image.ts           Validación y compresión
 │  ├─ storage.ts         Rutas, subida, borrado, URLs firmadas, limpieza por carpeta
 │  ├─ submissions.ts     Flujos de publicar, reemplazar, borrar y editar título
-│  ├─ admin.ts           Acciones de administración + limpieza de Storage
+│  ├─ rounds.ts          Acciones del dueño (crear, estados, visibilidad, ganador, borrar) + limpieza de Storage
+│  ├─ members.ts         Invitaciones, miembros, salir y solicitudes de acceso
+│  ├─ hub.ts             Pestañas, búsqueda sin tildes, orden y cupo de competencias activas
+│  ├─ podium.ts          Ganador y los siguientes del podio (con empates) para la imagen del resultado
+│  ├─ resultImage.ts     Imagen del resultado en canvas (1200 × 630), copiar al portapapeles y descargar
+│  ├─ exportZip.ts       ZIP de exportación: resumen.png, imágenes y resultados.csv
+│  ├─ drive.ts           Permiso drive.file con Google Identity Services y subida reanudable
+│  ├─ admin.ts           Archivo y limpieza (superadmin)
 │  ├─ realtime.ts        Claves a invalidar, debounce, avisos de cambio de estado
 │  ├─ drawer.ts          Constantes y decisiones del arrastre del cajón
-│  └─ labels.ts          Etiquetas de estado, iniciales, fechas, nombre sugerido
+│  └─ labels.ts          Etiquetas de estado y visibilidad, iniciales, fechas, slugify
 ├─ hooks/                Consultas (TanStack Query) y contextos
 ├─ components/           Piezas de UI reutilizables
 ├─ pages/                Una por ruta
@@ -56,14 +63,16 @@ src/
 | Ruta | Página | Acceso |
 | --- | --- | --- |
 | `/login` | `LoginPage` | Pública; con sesión redirige a `/` |
-| `/` | `BoardPage` | Con sesión |
-| `/historial` | `HistoryPage` | Con sesión |
-| `/historial/:roundId` | `HistoryDetailPage` | Con sesión; si es la competencia actual redirige a `/` |
-| `/admin` | `AdminPage` | Solo admin (`RequireAdmin`); los demás van a `/` |
-| `/estilos` | `StylesPage` | Solo admin: muestra de la guía de estilo |
+| `/` | `HubPage` | Con sesión |
+| `/c/:roundId` | `RoundPage` | Con sesión; sin acceso muestra el candado, y limpiada, la lápida |
+| `/c/:roundId/gestion` | `ManagePage` | Dueño ("Gestionar") o superadmin ("Moderar"); los demás vuelven a `/c/:roundId` |
+| `/invitacion/:token` | `JoinPage` | Con sesión; entra a la privada y redirige a `/c/:roundId` |
+| `/historial`, `/historial/:roundId` | — | Redirigen a `/` y a `/c/:roundId` (rutas de la v1) |
+| `/admin` | `AdminPage` | Solo superadmin (`RequireAdmin`); los demás van a `/` |
+| `/estilos` | `StylesPage` | Solo superadmin: muestra de la guía de estilo |
 | cualquier otra | — | Redirige a `/` |
 
-`RequireAuth` y `RequireAdmin` están en `components/RouteGuards.tsx`. `RequireAdmin` usa `useIsAdmin` (`rpc('is_admin')`) solo para mostrar u ocultar: la seguridad real está en las RPC. Los errores inesperados de render muestran `ErrorPage`, en español.
+`RequireAuth`, `RequireAdmin` y `LegacyHistoryRedirect` están en `components/RouteGuards.tsx`. Sin sesión, `RequireAuth` recuerda la ruta pedida en `sessionStorage` (solo rutas internas, `isSafeRedirect`) y la retoma al volver de Google, que siempre vuelve al inicio: así funciona un enlace de invitación abierto sin sesión. `RequireAdmin` usa `useIsAdmin` (`rpc('is_admin')`) solo para mostrar u ocultar: la seguridad real está en las RPC. Los errores inesperados de render muestran `ErrorPage`, en español.
 
 ## 4. Sesión y login
 
@@ -81,18 +90,24 @@ src/
 
 | Clave | Hook | Fuente |
 | --- | --- | --- |
-| `['current_round']` | `useCurrentRound` | `rounds` con `status <> 'archived'` |
+| `['hub']` | `useHub` | `rpc('hub_rounds')`: todas las competencias con lo que cada uno puede ver |
+| `['round', roundId]` | `useRound` | fila de `rounds` (datos generales; null si no existe) |
+| `['round_access', roundId]` | `useRoundAccess` | `rpc('can_view_round')` |
+| `['round_stats', roundId]` | `useRoundStats` | `rpc('round_stats')`: participantes, publicaciones y votos |
 | `['board', roundId]` | `useBoard` | vista `board`, normalizada con `toBoardItem` |
-| `['my_votes', roundId, userId]` | `useMyVotes` | `votes` propios → `{ bySubmission, used, left }` |
+| `['my_votes', roundId, userId]` | `useMyVotes` | `votes` propios en esa competencia → `{ bySubmission, used, left }` |
 | `['vote_details', roundId]` | `useVoteDetails` | vista `vote_details`, agrupada por publicación |
+| `['round_members', roundId, …]` | `useMembers`, `useIsMember` | `round_members` con el perfil embebido |
+| `['access_requests', roundId, …]` | `usePendingRequests`, `useMyPendingRequest` | `access_requests` pendientes |
+| `['invite_token', roundId]` | `useInviteToken` | `rpc('get_invite_link')` (solo el dueño de una privada) |
+| `['profile', id]`, `['profile_search', término]` | `useProfile`, `useProfileSearch` | `profiles` (dueño de una competencia; agregar miembros) |
 | `['signed_urls', paths]` | `useSignedUrls` | `createSignedUrls` en lote, 1 h; se renuevan a los 50 min |
 | `['is_admin', userId]` | `useIsAdmin` | `rpc('is_admin')`, sin vencimiento |
-| `['history', …]` | `useArchivedRounds`, `useLatestArchivedRound`, `useWinners`, `useRound` | `rounds` archivadas y ganadores desde `board` |
-| `['admin_stats', roundId]` | `useAdminStats` | conteos de perfiles, publicaciones y votos |
+| `['admin_to_archive']`, `['admin_archives']` | `AdminPage` | `rpc('admin_rounds_to_archive')` y `rpc('admin_archives')` |
 
 ### Escrituras
 
-Las acciones viven en `lib/submissions.ts` (usuario) y `lib/admin.ts` (admin). Cada una llama una RPC y hace la limpieza de Storage que corresponde (ver [supabase.md §6](supabase.md#6-storage)). Los componentes:
+Las acciones viven en `lib/submissions.ts` (participar), `lib/rounds.ts` (dueño y borrar como superadmin), `lib/members.ts` (miembros y solicitudes) y `lib/admin.ts` (archivo). Cada una llama una RPC y hace la limpieza de Storage que corresponde (ver [supabase.md §6](supabase.md#6-storage)). Los componentes:
 
 1. deshabilitan el botón mientras la acción responde,
 2. muestran el error traducido en un toast si falla,
@@ -100,12 +115,12 @@ Las acciones viven en `lib/submissions.ts` (usuario) y `lib/admin.ts` (admin). C
 
 ### Tiempo real
 
-`useRealtime` (montado en el layout autenticado):
-- Abre un solo canal `board` con `postgres_changes` sobre `rounds`, `submissions` y `votes`.
-- Ante cualquier evento, invalida `REALTIME_QUERY_KEYS` con un debounce de 300 ms. También al reconectar el canal.
-- Las consultas además se vuelven a leer al volver a la ventana.
+Dos canales con `postgres_changes` (`hooks/useRealtime.ts`). Ante cualquier evento no se aplica el cambio a mano: se invalidan claves con un debounce de 300 ms, y también al reconectar.
+- **`hub`** (`useHubRealtime`, montado en el layout autenticado): `rounds`, `round_members` y `access_requests`; invalida `HUB_QUERY_KEYS`.
+- **`round:{id}`** (`useRoundRealtime`, en `RoundPage` y `ManagePage`): la fila de la competencia y sus `submissions`, `votes`, `round_members` y `access_requests`, filtrados por `round_id`; invalida `ROUND_QUERY_KEYS`.
+- Realtime aplica el RLS de cada suscriptor. Las consultas además se vuelven a leer al volver a la ventana.
 
-`useRoundStatusNotice` compara el estado anterior con el nuevo y muestra un toast con `statusChangeMessage`: "La votación se cerró", "La votación se reabrió", "¡Ya hay ganador!", "Empezó una nueva competencia", etc. La vista cambia sola porque `BoardPage` depende de `current_round`.
+`useRoundStatusNotice` compara el estado anterior de la competencia que se mira con el nuevo y muestra un toast con `statusChangeMessage`: "La votación se cerró", "La votación se reabrió", "¡Ya hay ganador!", etc. `RoundPage` también avisa "Ya no tienes acceso a esta competencia" si a alguien lo quitan mientras mira.
 
 ## 6. Imágenes
 
@@ -120,20 +135,35 @@ Las acciones viven en `lib/submissions.ts` (usuario) y `lib/admin.ts` (admin). C
 Título del juego, una tarjeta con "¡A jugar!", el botón "Ingresar con Google" y la aclaración "Solo cuentas @grupokelsoft.com". Si hubo un rechazo, un aviso rojo arriba del botón explica por qué.
 
 ### Encabezado (todas las páginas con sesión)
-- Botón del cajón "Mi publicación" (solo en el tablón abierto), nombre de la competencia y chip de estado.
-- Fichas de voto: tres círculos rosas que se vacían al votar, con "Te quedan N de 3 votos". En móvil solo las fichas; el texto queda como `aria-label`.
-- Enlaces a Historial y Admin (solo admin; en móvil, solo íconos).
+- Botón del cajón "Mi publicación" (solo en el tablón abierto).
+- Dentro de una competencia (`useMatch('/c/:roundId/*')`): su nombre y chip de estado. Fuera, "Tablón de Imágenes".
+- Fichas de voto (solo con la competencia abierta y con acceso): tres círculos rosas que se vacían al votar, con "Te quedan N de 3 votos". En móvil solo las fichas; el texto queda como `aria-label`.
+- Enlaces a Competencias (hub), Gestionar (dueño, con el contador de solicitudes pendientes) o Moderar (superadmin), y Admin (superadmin). En móvil, solo íconos.
 - Avatar con el menú "Cerrar sesión".
 - El encabezado publica su altura en la variable CSS `--header-h`, que usa el cajón para posicionarse.
 
-### Tablón según el estado
+### Hub (`/`)
 
-| Estado | Qué se ve |
+- Título "Competencias" con "Crear competencia". Sin cupo (2 activas), el botón queda deshabilitado y el motivo se muestra debajo.
+- Pestañas Mis competencias, Abiertas, Finalizadas y Todas (arranca en "Mis competencias" si la persona participa en alguna) y buscador sin tildes ni mayúsculas.
+- Tarjetas (`HubCard`) con portada (ganadora o más votada), nombre, candado si es privada, chip de estado o "Archivada", "Tuya", solicitudes pendientes, dueño, participantes y ganador. Las privadas sin acceso no muestran portada ni ganador y llevan "Solicitar acceso" o "Solicitud pendiente".
+- **Crear competencia** (`CreateRoundDialog`): nombre con contador, visibilidad con su explicación, el aviso "El nombre lo ve todo Kelsoft" y el cupo restante. Al crear lleva a `/c/:roundId/gestion`.
+
+### Competencia (`/c/:roundId`) según el estado
+
+| Caso | Qué se ve |
 | --- | --- |
-| Preparada | "La competencia todavía no abrió" y, si existe, un enlace al resultado de la última archivada |
+| No existe | "No encontramos esa competencia" y el enlace al hub |
+| Archivada (limpiada) | Su nombre y "Esta competencia se archivó por inactividad" |
+| Privada sin acceso | Candado, dueño, estado y "Solicitar acceso" (o "Solicitud pendiente"); se actualiza sola al aprobarse |
+| Preparada | "La competencia todavía no abrió" |
 | Abierta | Cajón "Mi publicación" + "¡A VOTAR!", selector de orden y grilla de tarjetas |
 | Cerrada | "La votación está cerrada" + ranking |
-| Finalizada | Ganador destacado con confeti (una vez) + ranking |
+| Finalizada | Ganador destacado con confeti (una vez), "Compartir resultado" y ranking |
+
+Los miembros de una privada ven al pie "Salir de la competencia", con confirmación (se borran su publicación y sus votos).
+
+**Compartir resultado** (`ShareResultDialog`): vista previa de la imagen de 1200 × 630 que dibuja `renderResultImage` con los tokens de la guía (ganadora sin recortar, título, autor y votos; debajo el 2.º y el 3.º según `buildPodium`). "Copiar imagen" usa `ClipboardItem` con la promesa del blob (Safari exige crearlo dentro del clic) y "Descargar" queda siempre, como única opción si el navegador no deja copiar imágenes. Las imágenes se bajan como blob para que el canvas no quede bloqueado por CORS; si el avatar de Google no carga, se dibujan las iniciales.
 
 **Grilla:** 1 columna en móvil, 2 desde 640 px, 3 desde 1024 px y 4 desde 1280 px. Orden "Más recientes" (por defecto) o "Más votadas".
 
@@ -169,16 +199,20 @@ Es la pieza de UX más particular de la app (`SubmissionDrawer` + `MySubmissionP
 
 **Detalle técnico importante:** el cajón se desliza con `transform`, y eso convierte a cualquier `position: fixed` interno en relativo al cajón. Por eso `ConfirmDialog` y `Lightbox` se renderizan con `createPortal` en `document.body`. **Cualquier overlay nuevo que pueda abrirse desde el cajón debe usar portal.**
 
-### Historial
-Grilla de competencias archivadas con miniatura del ganador, nombre, fecha de finalización y autor ganador. El detalle repite el ranking y el ganador del estado finalizado, sin confeti.
+### Gestionar (`/c/:roundId/gestion`)
+Para el dueño, paneles de arriba abajo:
+1. **Competencia:** nombre editable, chip de estado y solo el botón válido (Abrir, Cerrar o Reabrir), visibilidad (editable solo en preparada, con el motivo cuando está bloqueada) y números: participantes (publicaron o votaron), publicaciones y votos emitidos.
+2. **Solicitudes** (solo privadas): pendientes con "Aprobar" y "Rechazar".
+3. **Miembros** (solo privadas): enlace de invitación con "Copiar" y "Generar nuevo enlace" (con confirmación), buscador de perfiles por nombre o email para agregar, y la lista con el origen de cada miembro y "Quitar".
+4. **Publicaciones** ordenadas por votos con "Borrar". Con la competencia cerrada, un selector de ganador por fila, el aviso de empate en el primer puesto y "Finalizar competencia".
+5. **Zona de peligro:** "Borrar competencia", que exige escribir `BORRAR` y vuelve al hub.
 
-### Administración
-Paneles, de arriba abajo:
-1. **Competencia actual:** nombre editable, chip de estado y solo el botón válido (Abrir, Cerrar o Reabrir). Números: participantes con sesión (perfiles), publicaciones y votos emitidos.
-2. **Nueva competencia** (solo con la competencia finalizada): sugiere el nombre siguiente ("Competencia 2" → "Competencia 3").
-3. **Publicaciones** ordenadas por votos con "Borrar". Con la competencia cerrada, un selector de ganador por fila, el aviso de empate en el primer puesto y "Finalizar competencia".
-4. **Zona de peligro:** "Reinicio total", que exige escribir `BORRAR` y el nombre de la nueva competencia.
-5. **Historial:** "Eliminar del historial" por competencia, con confirmación.
+Para el superadmin en una competencia ajena es **Moderar**: solo los paneles 4 (sin elegir ganador) y 5.
+
+### Administración (`/admin`, superadmin)
+1. **Para archivar:** competencias con más de 60 días sin actividad. Por cada una, "Exportar a Drive" (pide el permiso `drive.file` primero, dentro del clic, y después arma el ZIP y lo sube), "Descargar ZIP" (y luego "Ya lo guardé") y "Limpiar", que se habilita recién con la exportación registrada. Sin `VITE_GOOGLE_CLIENT_ID`, solo descarga. El script de Google se precarga al abrir el panel.
+2. **Archivadas:** competencias limpiadas con su enlace a Drive.
+3. **Todas las competencias:** con enlace y "Borrar" (exige `BORRAR`).
 
 Todas las acciones destructivas pasan por `ConfirmDialog`. Si la limpieza de Storage falla después de una RPC exitosa, se avisa "Se borraron los datos, pero no se pudieron borrar algunos archivos de Storage".
 
@@ -223,12 +257,17 @@ npm run lint
 npm test        # Vitest
 ```
 
-Los tests cubren la lógica pura de `src/lib`: errores, dominio y avisos de login, validación de imágenes, rutas y lotes de Storage, orden, ranking y empates, votos restantes, realtime (debounce y avisos), arrastre del cajón, etiquetas y fechas. No hay tests de componentes ni end-to-end: los flujos se verificaron a mano en el navegador.
+Los tests cubren la lógica pura de `src/lib`: errores, dominio, avisos de login y redirecciones seguras, validación de imágenes, rutas y lotes de Storage, orden, ranking y empates, votos restantes, realtime (debounce y avisos), arrastre del cajón, etiquetas y fechas, filtros y cupo del hub, podio, recorte de texto y colores de la imagen del resultado, y CSV y nombres del ZIP. No hay tests de componentes ni end-to-end: los flujos se verifican a mano en el navegador.
+
+La imagen del resultado se puede revisar sin sesión con Chrome sin interfaz: una página temporal en la raíz que importe `renderResultImage` con datos de ejemplo, servida por `npx vite`, y `chrome --headless=new --screenshot`.
 
 ## 12. Limitaciones conocidas e ideas
 
 - Los diálogos no atrapan el foco (focus trap); el foco inicial y Escape sí funcionan.
 - Las iniciales del avatar (blanco sobre `brand-400`) tienen un contraste de alrededor de 3,9:1; acompañan siempre al nombre escrito.
 - Sin publicación, el cajón arranca oculto un instante y se desliza abierto cuando cargan los datos.
-- `profiles` no está en Realtime: el número de participantes del panel de admin se actualiza al volver a la ventana.
+- `profiles` no está en Realtime: un cambio de nombre o avatar se ve al volver a la ventana.
 - La concurrencia de votos (clics simultáneos) solo se probó a mano.
+- Los eventos de borrado de Realtime no se filtran por competencia: cuando alguien pierde el acceso, el candado aparece con el siguiente evento de la competencia o al volver a la ventana.
+- El ZIP se arma entero en memoria (fflate `zipSync`): con unos 100 MB por competencia alcanza, pero no escalaría a competencias mucho más grandes.
+- "Invitar a los mismos de otra competencia" quedó para una versión posterior.
