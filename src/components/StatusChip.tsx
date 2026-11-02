@@ -6,7 +6,6 @@ const STATUS_CLASSES: Record<RoundStatus, string> = {
   open: 'chip-open',
   closed: 'chip-closed',
   finalized: 'chip-finalized',
-  archived: 'chip-pending',
 }
 
 export default function StatusChip({ status }: { status: RoundStatus }) {

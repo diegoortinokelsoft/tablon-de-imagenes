@@ -4,7 +4,7 @@ vi.stubEnv('VITE_SUPABASE_URL', 'https://x.supabase.co')
 vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'clave')
 vi.stubEnv('VITE_ALLOWED_DOMAIN', 'grupokelsoft.com')
 
-const { DOMAIN_ERROR_MESSAGE, authErrorMessage, isAllowedEmail, readAuthErrorFromUrl } = await import('./auth')
+const { DOMAIN_ERROR_MESSAGE, authErrorMessage, isAllowedEmail, isSafeRedirect, readAuthErrorFromUrl } = await import('./auth')
 
 describe('authErrorMessage', () => {
   it('reconoce el rechazo del hook y del trigger de dominio', () => {
@@ -56,5 +56,20 @@ describe('readAuthErrorFromUrl', () => {
 describe('DOMAIN_ERROR_MESSAGE', () => {
   it('usa el texto de la especificación', () => {
     expect(DOMAIN_ERROR_MESSAGE).toBe('Solo pueden ingresar cuentas @grupokelsoft.com')
+  })
+})
+
+describe('isSafeRedirect', () => {
+  it('acepta rutas internas', () => {
+    expect(isSafeRedirect('/invitacion/abc')).toBe(true)
+    expect(isSafeRedirect('/c/123/gestion')).toBe(true)
+  })
+
+  it('rechaza otros sitios, el inicio y el login', () => {
+    expect(isSafeRedirect('//evil.com')).toBe(false)
+    expect(isSafeRedirect('https://evil.com')).toBe(false)
+    expect(isSafeRedirect('/')).toBe(false)
+    expect(isSafeRedirect('/login')).toBe(false)
+    expect(isSafeRedirect(null)).toBe(false)
   })
 })

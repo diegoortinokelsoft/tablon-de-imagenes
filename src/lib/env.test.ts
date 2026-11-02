@@ -14,7 +14,23 @@ describe('readEnv', () => {
         VITE_SUPABASE_ANON_KEY: 'clave',
         VITE_ALLOWED_DOMAIN: 'GrupoKelsoft.com',
       }),
-    ).toEqual({ supabaseUrl: 'https://x.supabase.co', supabaseAnonKey: 'clave', allowedDomain: 'grupokelsoft.com' })
+    ).toEqual({
+      supabaseUrl: 'https://x.supabase.co',
+      supabaseAnonKey: 'clave',
+      allowedDomain: 'grupokelsoft.com',
+      googleClientId: null,
+    })
+  })
+
+  it('el Client ID de Google es opcional', () => {
+    expect(
+      readEnv({
+        VITE_SUPABASE_URL: 'https://x.supabase.co',
+        VITE_SUPABASE_ANON_KEY: 'clave',
+        VITE_ALLOWED_DOMAIN: 'grupokelsoft.com',
+        VITE_GOOGLE_CLIENT_ID: ' 123.apps.googleusercontent.com ',
+      }).googleClientId,
+    ).toBe('123.apps.googleusercontent.com')
   })
 
   it('falla indicando qué variables faltan', () => {

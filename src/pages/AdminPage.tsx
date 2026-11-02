@@ -1,379 +1,326 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Palette, Trash2, Trophy } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Archive, Check, CloudUpload, Download, ExternalLink, Lock, Palette, Trash2 } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
-import Lightbox from '../components/Lightbox'
-import RankingList from '../components/RankingList'
+import { ErrorState, Loading } from '../components/StateMessages'
 import StatusChip from '../components/StatusChip'
-import { useAdminStats } from '../hooks/useAdminStats'
-import { useBoard } from '../hooks/useBoard'
-import { useCurrentRound, type Round, type RoundStatus } from '../hooks/useCurrentRound'
-import { useArchivedRounds } from '../hooks/useHistory'
-import { useSignedUrls } from '../hooks/useSignedUrls'
+import { useHub } from '../hooks/useHub'
 import { useToast } from '../hooks/useToast'
-import {
-  deleteArchivedRound,
-  deleteSubmissionAsAdmin,
-  finalizeRound,
-  hardReset,
-  renameRound,
-  setRoundStatus,
-  startNewRound,
-} from '../lib/admin'
-import { tiedPositions, type BoardItem } from '../lib/board'
-import { errorMessage } from '../lib/errors'
-import { formatDate, suggestNextRoundName } from '../lib/labels'
-import { REALTIME_QUERY_KEYS } from '../lib/realtime'
+import { cleanRound, fetchArchives, fetchRoundsToArchive, markExported } from '../lib/admin'
+import { getDriveToken, loadGis, uploadToDrive } from '../lib/drive'
+import { env } from '../lib/env'
+import { errorCode, errorMessage } from '../lib/errors'
+import { buildRoundExport, exportFilename } from '../lib/exportZip'
+import { formatDate } from '../lib/labels'
+import { downloadBlob } from '../lib/resultImage'
+import { deleteRound } from '../lib/rounds'
+import { supabase } from '../lib/supabase'
 
 const FILES_WARNING = 'Se borraron los datos, pero no se pudieron borrar algunos archivos de Storage.'
+const ADMIN_KEYS = ['hub', 'admin_to_archive', 'admin_archives']
 
-// Botones válidos para cada estado (Abrir, Cerrar, Reabrir).
-const STATUS_ACTIONS: Partial<Record<RoundStatus, { label: string; target: RoundStatus; className: string }>> = {
-  pending: { label: 'Abrir', target: 'open', className: 'btn-primary' },
-  open: { label: 'Cerrar', target: 'closed', className: 'btn-primary' },
-  closed: { label: 'Reabrir', target: 'open', className: 'btn-secondary' },
-}
-
-/** Ejecuta una acción de admin con estado de carga, toast de error y relectura de los datos. */
-function useAdminAction() {
-  const { notify } = useToast()
-  const queryClient = useQueryClient()
-  const [busy, setBusy] = useState<string | null>(null)
-
-  const run = useCallback(
-    async (key: string, action: () => Promise<unknown>, success?: string) => {
-      setBusy(key)
-      try {
-        const result = await action()
-        if (result && typeof result === 'object' && 'filesOk' in result && !result.filesOk) {
-          notify(FILES_WARNING, 'error')
-        } else if (success) {
-          notify(success, 'success')
-        }
-        return true
-      } catch (error) {
-        notify(errorMessage(error), 'error')
-        return false
-      } finally {
-        await Promise.all(REALTIME_QUERY_KEYS.map((k) => queryClient.invalidateQueries({ queryKey: [k] })))
-        setBusy(null)
-      }
-    },
-    [notify, queryClient],
-  )
-
-  return { busy, run }
-}
-
-function Panel({ title, children, tone = 'default' }: { title: string; children: ReactNode; tone?: 'default' | 'danger' }) {
+function Panel({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   const id = `panel-${title.toLowerCase().replace(/\s+/g, '-')}`
   return (
-    <section className={`card flex flex-col gap-4 p-4 sm:p-6 ${tone === 'danger' ? 'border-danger' : ''}`} aria-labelledby={id}>
-      <h2 id={id} className="section-title">
-        {title}
-      </h2>
+    <section className="card flex flex-col gap-4 p-4 sm:p-6" aria-labelledby={id}>
+      <div className="flex flex-col gap-1">
+        <h2 id={id} className="section-title">
+          {title}
+        </h2>
+        {description && <p className="text-body text-ink-muted">{description}</p>}
+      </div>
       {children}
     </section>
   )
 }
 
-function NameField({
-  label,
-  value,
-  onChange,
-  disabled,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  disabled?: boolean
-}) {
-  return (
-    <label className="flex flex-1 flex-col gap-2">
-      <span className="text-label uppercase">{label}</span>
-      <span className="relative">
-        <input
-          className="input pr-20"
-          value={value}
-          maxLength={80}
-          disabled={disabled}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary tabular-nums text-ink-muted">
-          {value.length}/80
-        </span>
-      </span>
-    </label>
-  )
+function useRefreshAdmin() {
+  const queryClient = useQueryClient()
+  return () => Promise.all(ADMIN_KEYS.map((key) => queryClient.invalidateQueries({ queryKey: [key] })))
 }
 
-function CurrentRoundPanel({ round }: { round: Round }) {
-  const { busy, run } = useAdminAction()
-  const { data: stats } = useAdminStats(round.id)
-  const [name, setName] = useState(round.name)
-  const action = STATUS_ACTIONS[round.status]
-  const nameChanged = name.trim() !== round.name
-  const nameValid = name.trim().length >= 1 && name.trim().length <= 80
+/** Datos de la competencia que necesita el ZIP (ganador y fecha de finalización). */
+async function fetchExportRound(roundId: string) {
+  const { data, error } = await supabase
+    .from('rounds')
+    .select('id, name, status, winner_submission_id, finalized_at')
+    .eq('id', roundId)
+    .single()
+  if (error) throw error
+  return data
+}
 
-  useEffect(() => setName(round.name), [round.name])
+type ToArchive = Awaited<ReturnType<typeof fetchRoundsToArchive>>[number]
+
+function ArchiveRow({ round }: { round: ToArchive }) {
+  const { notify } = useToast()
+  const refresh = useRefreshAdmin()
+  const [step, setStep] = useState<string | null>(null)
+  const [downloaded, setDownloaded] = useState(false)
+  const [confirmClean, setConfirmClean] = useState(false)
+  const busy = step !== null
+  const exported = !!round.exported_at
+
+  const run = async (label: string, action: () => Promise<unknown>) => {
+    setStep(label)
+    try {
+      await action()
+    } catch (error) {
+      // Los errores de RPC traen un código; los de Drive o del ZIP, un mensaje propio en español.
+      notify(errorCode(error) || !(error instanceof Error) ? errorMessage(error) : error.message, 'error')
+    } finally {
+      await refresh()
+      setStep(null)
+    }
+  }
+
+  const exportToDrive = () =>
+    run('Pidiendo permiso a Google…', async () => {
+      // El permiso se pide primero, dentro del clic, para que el navegador no bloquee la ventana de Google.
+      const token = await getDriveToken(env.googleClientId!)
+      setStep('Armando el ZIP…')
+      const blob = await buildRoundExport(await fetchExportRound(round.id))
+      setStep('Subiendo a Drive…')
+      const link = await uploadToDrive(token, blob, exportFilename(round.name))
+      await markExported(round.id, link)
+      notify('Exportada a Drive', 'success')
+    })
+
+  const download = () =>
+    run('Armando el ZIP…', async () => {
+      const blob = await buildRoundExport(await fetchExportRound(round.id))
+      downloadBlob(blob, exportFilename(round.name))
+      setDownloaded(true)
+    })
+
+  const clean = () =>
+    run('Limpiando…', async () => {
+      const result = await cleanRound(round.id)
+      notify(result.filesOk ? 'Competencia archivada' : FILES_WARNING, result.filesOk ? 'success' : 'error')
+      setConfirmClean(false)
+    })
 
   return (
-    <Panel title="Competencia actual">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <NameField label="Nombre" value={name} onChange={setName} disabled={busy !== null} />
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={!nameChanged || !nameValid || busy !== null}
-          onClick={() => void run('rename', () => renameRound(name), 'Nombre guardado')}
-        >
-          Guardar nombre
-        </button>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-label uppercase text-ink-muted">Estado</span>
+    <li className="flex flex-col gap-3 rounded-btn bg-surface-alt p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Link to={`/c/${round.id}`} className="min-w-0 flex-1 truncate text-card-title text-brand-600 hover:underline">
+          {round.name}
+        </Link>
+        {round.visibility === 'private' && <Lock className="h-4 w-4 text-brand-600" strokeWidth={2.5} aria-label="Privada" />}
         <StatusChip status={round.status} />
-        {action && (
-          <button
-            type="button"
-            className={`btn btn-sm ${action.className}`}
-            disabled={busy !== null}
-            onClick={() => void run('status', () => setRoundStatus(action.target))}
-          >
-            {action.label}
+      </div>
+      <p className="text-secondary text-ink-muted">
+        De {round.owner_name} · sin actividad desde el {formatDate(round.last_activity_at)} ·{' '}
+        {round.submission_count === 1 ? '1 publicación' : `${round.submission_count} publicaciones`}
+      </p>
+      {exported && (
+        <p className="flex flex-wrap items-center gap-2 text-secondary">
+          <Check className="h-4 w-4 text-ink" strokeWidth={2.5} aria-hidden />
+          Exportada el {formatDate(round.exported_at)}
+          {round.drive_url ? (
+            <a href={round.drive_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-brand-600 underline">
+              Abrir en Drive
+              <ExternalLink className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+            </a>
+          ) : (
+            '(guardada a mano)'
+          )}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {env.googleClientId && (
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void exportToDrive()}>
+            <CloudUpload className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+            Exportar a Drive
           </button>
         )}
-      </div>
-      <dl className="grid grid-cols-3 gap-3">
-        {(
-          [
-            ['Participantes con sesión', stats?.participants],
-            ['Publicaciones', stats?.submissions],
-            ['Votos emitidos', stats?.votes],
-          ] as const
-        ).map(([label, value]) => (
-          <div key={label} className="flex flex-col gap-1 rounded-btn bg-surface-alt p-3">
-            <dt className="text-label uppercase text-ink-muted">{label}</dt>
-            <dd className="font-display text-vote-card tabular-nums">{value ?? '–'}</dd>
-          </div>
-        ))}
-      </dl>
-    </Panel>
-  )
-}
-
-function SubmissionsPanel({ round }: { round: Round }) {
-  const { busy, run } = useAdminAction()
-  const { data: items = [] } = useBoard(round.id)
-  const { data: urls = {} } = useSignedUrls(items.map((item) => item.imagePath))
-  const [toDelete, setToDelete] = useState<BoardItem | null>(null)
-  const [winnerId, setWinnerId] = useState<string | null>(null)
-  const [confirmFinalize, setConfirmFinalize] = useState(false)
-  const [lightbox, setLightbox] = useState<BoardItem | null>(null)
-  const closeLightbox = useCallback(() => setLightbox(null), [])
-
-  const choosing = round.status === 'closed'
-  const tieAtTop = tiedPositions(items).has(1)
-  const winner = items.find((item) => item.id === winnerId)
-
-  useEffect(() => {
-    if (winnerId && !items.some((item) => item.id === winnerId)) setWinnerId(null)
-  }, [items, winnerId])
-
-  return (
-    <Panel title="Publicaciones">
-      {choosing && (
-        <p className="text-body text-ink-muted">
-          Elige la publicación ganadora y pulsa "Finalizar competencia". Puedes elegir cualquiera.
-        </p>
-      )}
-      {choosing && tieAtTop && (
-        <p role="alert" className="flex items-center gap-2 rounded-btn border-3 border-sun bg-surface-alt p-3 text-secondary">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-ink" strokeWidth={2.5} aria-hidden />
-          Hay empate en el primer puesto. La elección es libre.
-        </p>
-      )}
-      {items.length === 0 ? (
-        <p className="text-body text-ink-muted">Todavía no hay publicaciones.</p>
-      ) : (
-        <RankingList
-          items={items}
-          urls={urls}
-          onOpen={setLightbox}
-          renderExtra={(item) => (
-            <div className="flex shrink-0 items-center gap-2">
-              {choosing && (
-                <label className="flex cursor-pointer items-center gap-2 text-label uppercase">
-                  <input
-                    type="radio"
-                    name="ganador"
-                    className="h-5 w-5 accent-brand-600"
-                    checked={winnerId === item.id}
-                    onChange={() => setWinnerId(item.id)}
-                  />
-                  <span className="hidden md:inline">Ganador</span>
-                </label>
-              )}
-              <button
-                type="button"
-                className="btn btn-icon btn-danger"
-                aria-label={`Borrar "${item.title}"`}
-                disabled={busy !== null}
-                onClick={() => setToDelete(item)}
-              >
-                <Trash2 strokeWidth={2.5} aria-hidden />
-              </button>
-            </div>
-          )}
-        />
-      )}
-      {choosing && (
+        <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void download()}>
+          <Download className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+          Descargar ZIP
+        </button>
+        {downloaded && !exported && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={busy}
+            onClick={() => void run('Registrando…', () => markExported(round.id, null))}
+          >
+            <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+            Ya lo guardé
+          </button>
+        )}
         <button
           type="button"
-          className="btn btn-primary self-start"
-          disabled={!winner || busy !== null}
-          onClick={() => setConfirmFinalize(true)}
+          className="btn btn-danger btn-sm"
+          disabled={busy || !exported}
+          title={exported ? undefined : 'Primero exporta la competencia'}
+          onClick={() => setConfirmClean(true)}
         >
-          <Trophy className="h-5 w-5" strokeWidth={2.5} aria-hidden />
-          Finalizar competencia
+          <Archive className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+          Limpiar
         </button>
-      )}
-
+        {step && (
+          <span className="text-secondary text-ink-muted" role="status">
+            {step}
+          </span>
+        )}
+      </div>
       <ConfirmDialog
-        open={toDelete !== null}
-        title="¿Borrar publicación?"
-        confirmLabel={busy === 'delete' ? 'Borrando…' : 'Borrar'}
+        open={confirmClean}
+        title="¿Limpiar la competencia?"
+        confirmLabel={step === 'Limpiando…' ? 'Limpiando…' : 'Limpiar'}
         danger
-        pending={busy === 'delete'}
-        onCancel={() => setToDelete(null)}
-        onConfirm={() =>
-          void run('delete', () => deleteSubmissionAsAdmin(toDelete!.id), 'Publicación borrada').then(() =>
-            setToDelete(null),
-          )
-        }
+        pending={step === 'Limpiando…'}
+        onCancel={() => setConfirmClean(false)}
+        onConfirm={() => void clean()}
       >
-        Se borrará "{toDelete?.title}" de {toDelete?.authorName}
-        {toDelete && toDelete.voteCount > 0 ? ` y sus ${toDelete.voteCount} votos volverán a quienes los dieron` : ''}.
+        Se borrarán las imágenes, publicaciones y votos de "{round.name}". En el hub queda como "Archivada" con su
+        ganador y su ranking en texto. La copia completa es la exportación.
       </ConfirmDialog>
-      <ConfirmDialog
-        open={confirmFinalize}
-        title="¿Finalizar competencia?"
-        confirmLabel={busy === 'finalize' ? 'Finalizando…' : 'Finalizar'}
-        pending={busy === 'finalize'}
-        onCancel={() => setConfirmFinalize(false)}
-        onConfirm={() =>
-          void run('finalize', () => finalizeRound(winner!.id), '¡Competencia finalizada!').then(() =>
-            setConfirmFinalize(false),
-          )
-        }
-      >
-        El ganador será "{winner?.title}" de {winner?.authorName}. Todos lo verán destacado.
-      </ConfirmDialog>
-      {lightbox && urls[lightbox.imagePath] && (
-        <Lightbox src={urls[lightbox.imagePath]!} title={lightbox.title} author={lightbox.authorName} onClose={closeLightbox} />
+    </li>
+  )
+}
+
+function ToArchivePanel() {
+  const { data: rounds = [], isPending, isError, refetch } = useQuery({
+    queryKey: ['admin_to_archive'],
+    queryFn: fetchRoundsToArchive,
+  })
+  const total = rounds.reduce((sum, round) => sum + round.submission_count, 0)
+
+  return (
+    <Panel
+      title="Para archivar"
+      description="Competencias con más de 60 días sin actividad. Exporta cada una (a Drive o descargando el ZIP) y después límpiala para liberar espacio."
+    >
+      {!env.googleClientId && (
+        <p className="rounded-btn border-3 border-sun bg-surface-alt p-3 text-secondary">
+          Falta configurar VITE_GOOGLE_CLIENT_ID: por ahora solo se puede descargar el ZIP.
+        </p>
+      )}
+      {isPending ? (
+        <p className="text-body text-ink-muted">Cargando…</p>
+      ) : isError ? (
+        <button type="button" className="btn btn-secondary btn-sm self-start" onClick={() => void refetch()}>
+          Reintentar
+        </button>
+      ) : rounds.length === 0 ? (
+        <p className="text-body text-ink-muted">No hay competencias para archivar.</p>
+      ) : (
+        <>
+          <p className="text-secondary text-ink-muted">
+            {rounds.length === 1 ? '1 competencia' : `${rounds.length} competencias`} esperan, con unas {total}{' '}
+            imágenes (alrededor de {total} MB).
+          </p>
+          <ul className="flex flex-col gap-3">
+            {rounds.map((round) => (
+              <ArchiveRow key={round.id} round={round} />
+            ))}
+          </ul>
+        </>
       )}
     </Panel>
   )
 }
 
-function NewRoundPanel({ round }: { round: Round }) {
-  const { busy, run } = useAdminAction()
-  const [name, setName] = useState(() => suggestNextRoundName(round.name))
-  const valid = name.trim().length >= 1
+function ArchivesPanel() {
+  const { data: archives = [], isPending } = useQuery({ queryKey: ['admin_archives'], queryFn: fetchArchives })
 
   return (
-    <Panel title="Nueva competencia">
-      <p className="text-body text-ink-muted">
-        Archiva "{round.name}" en el historial, con su ganador y su ranking, y crea una nueva en estado Preparada.
-      </p>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <NameField label="Nombre de la nueva competencia" value={name} onChange={setName} disabled={busy !== null} />
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!valid || busy !== null}
-          onClick={() => void run('new', () => startNewRound(name), 'Nueva competencia creada')}
-        >
-          Nueva competencia
-        </button>
-      </div>
+    <Panel title="Archivadas" description="Competencias limpiadas, con el enlace a su exportación.">
+      {isPending ? (
+        <p className="text-body text-ink-muted">Cargando…</p>
+      ) : archives.length === 0 ? (
+        <p className="text-body text-ink-muted">Todavía no se archivó ninguna competencia.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {archives.map((archive) => (
+            <li key={archive.id} className="flex flex-wrap items-center gap-3 rounded-btn bg-surface-alt p-3">
+              <Link to={`/c/${archive.id}`} className="min-w-0 flex-1 truncate text-card-title text-brand-600 hover:underline">
+                {archive.name}
+              </Link>
+              <span className="text-secondary text-ink-muted">
+                De {archive.owner_name} · archivada el {formatDate(archive.cleaned_at)}
+              </span>
+              {archive.drive_url ? (
+                <a
+                  href={archive.drive_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-secondary text-brand-600 underline"
+                >
+                  Abrir en Drive
+                  <ExternalLink className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                </a>
+              ) : (
+                <span className="text-secondary text-ink-muted">Guardada a mano</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </Panel>
   )
 }
 
-function DangerZone({ round }: { round: Round }) {
-  const { busy, run } = useAdminAction()
-  const [open, setOpen] = useState(false)
+function AllRoundsPanel() {
+  const { notify } = useToast()
+  const refresh = useRefreshAdmin()
+  const { data: rounds = [], isPending, isError, refetch } = useHub()
+  const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null)
   const [confirmText, setConfirmText] = useState('')
-  const [name, setName] = useState(round.name)
+  const [deleting, setDeleting] = useState(false)
+  const sorted = [...rounds].sort((a, b) => b.last_activity_at.localeCompare(a.last_activity_at))
 
   const close = () => {
-    setOpen(false)
+    setToDelete(null)
     setConfirmText('')
   }
 
-  return (
-    <Panel title="Zona de peligro" tone="danger">
-      <p className="text-body text-ink-muted">
-        El reinicio total borra definitivamente "{round.name}" con todas sus publicaciones, votos e imágenes, sin dejar
-        historial, y crea una competencia nueva en estado Preparada.
-      </p>
-      <button type="button" className="btn btn-danger self-start" disabled={busy !== null} onClick={() => setOpen(true)}>
-        Reinicio total
-      </button>
-      <ConfirmDialog
-        open={open}
-        title="Reinicio total"
-        confirmLabel={busy === 'reset' ? 'Borrando…' : 'Borrar todo'}
-        danger
-        pending={busy === 'reset'}
-        confirmDisabled={confirmText !== 'BORRAR' || name.trim().length === 0}
-        onCancel={close}
-        onConfirm={() => void run('reset', () => hardReset(name), 'Competencia reiniciada').then(close)}
-      >
-        <div className="flex flex-col gap-4">
-          <p>Esta acción no se puede deshacer.</p>
-          <NameField label="Nombre de la nueva competencia" value={name} onChange={setName} />
-          <label className="flex flex-col gap-2">
-            <span className="text-label uppercase text-ink">Escribe BORRAR para confirmar</span>
-            <input
-              className="input"
-              value={confirmText}
-              autoComplete="off"
-              onChange={(event) => setConfirmText(event.target.value)}
-            />
-          </label>
-        </div>
-      </ConfirmDialog>
-    </Panel>
-  )
-}
-
-function HistoryPanel() {
-  const { busy, run } = useAdminAction()
-  const { data: rounds = [] } = useArchivedRounds()
-  const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null)
+  const remove = async () => {
+    if (!toDelete) return
+    setDeleting(true)
+    try {
+      const result = await deleteRound(toDelete.id)
+      notify(result.filesOk ? 'Competencia borrada' : FILES_WARNING, result.filesOk ? 'success' : 'error')
+      close()
+    } catch (error) {
+      notify(errorMessage(error), 'error')
+    } finally {
+      await refresh()
+      setDeleting(false)
+    }
+  }
 
   return (
-    <Panel title="Historial">
-      {rounds.length === 0 ? (
-        <p className="text-body text-ink-muted">Todavía no hay competencias archivadas.</p>
+    <Panel
+      title="Todas las competencias"
+      description='Para moderar publicaciones, entra a la competencia y usa "Moderar" en el encabezado.'
+    >
+      {isPending ? (
+        <Loading />
+      ) : isError ? (
+        <ErrorState onRetry={() => void refetch()} />
       ) : (
-        <ul className="flex flex-col gap-3">
-          {rounds.map((archived) => (
-            <li key={archived.id} className="flex flex-wrap items-center gap-3 rounded-btn bg-surface-alt p-3">
-              <Link to={`/historial/${archived.id}`} className="min-w-0 flex-1 text-card-title text-brand-600 hover:underline">
-                {archived.name}
+        <ul className="flex flex-col gap-2">
+          {sorted.map((round) => (
+            <li key={round.id} className="flex flex-wrap items-center gap-3 rounded-btn bg-surface-alt p-3">
+              <Link to={`/c/${round.id}`} className="min-w-0 flex-1 truncate text-card-title text-brand-600 hover:underline">
+                {round.name}
               </Link>
-              <span className="text-secondary text-ink-muted">Finalizada el {formatDate(archived.finalized_at)}</span>
+              {round.visibility === 'private' && <Lock className="h-4 w-4 text-brand-600" strokeWidth={2.5} aria-label="Privada" />}
+              {round.cleaned_at ? <span className="chip chip-pending">Archivada</span> : <StatusChip status={round.status} />}
+              <span className="text-secondary text-ink-muted">
+                {round.owner_name} · {formatDate(round.last_activity_at)}
+              </span>
               <button
                 type="button"
-                className="btn btn-danger btn-sm"
-                disabled={busy !== null}
-                onClick={() => setToDelete(archived)}
+                className="btn btn-icon btn-danger"
+                aria-label={`Borrar "${round.name}"`}
+                onClick={() => setToDelete({ id: round.id, name: round.name })}
               >
-                Eliminar del historial
+                <Trash2 strokeWidth={2.5} aria-hidden />
               </button>
             </li>
           ))}
@@ -381,25 +328,34 @@ function HistoryPanel() {
       )}
       <ConfirmDialog
         open={toDelete !== null}
-        title="¿Eliminar del historial?"
-        confirmLabel={busy === 'archive' ? 'Eliminando…' : 'Eliminar'}
+        title="Borrar competencia"
+        confirmLabel={deleting ? 'Borrando…' : 'Borrar todo'}
         danger
-        pending={busy === 'archive'}
-        onCancel={() => setToDelete(null)}
-        onConfirm={() =>
-          void run('archive', () => deleteArchivedRound(toDelete!.id), 'Competencia eliminada del historial').then(() =>
-            setToDelete(null),
-          )
-        }
+        pending={deleting}
+        confirmDisabled={confirmText !== 'BORRAR'}
+        onCancel={close}
+        onConfirm={() => void remove()}
       >
-        Se borrarán definitivamente "{toDelete?.name}", sus publicaciones, votos e imágenes.
+        <div className="flex flex-col gap-4">
+          <p>
+            Se borrarán definitivamente "{toDelete?.name}", sus publicaciones, votos, miembros e imágenes. Esta acción no
+            se puede deshacer.
+          </p>
+          <label className="flex flex-col gap-2">
+            <span className="text-label uppercase text-ink">Escribe BORRAR para confirmar</span>
+            <input className="input" value={confirmText} autoComplete="off" onChange={(event) => setConfirmText(event.target.value)} />
+          </label>
+        </div>
       </ConfirmDialog>
     </Panel>
   )
 }
 
 export default function AdminPage() {
-  const { data: round } = useCurrentRound()
+  // Precarga el script de Google para que el permiso de Drive se pida sin demoras dentro del clic.
+  useEffect(() => {
+    if (env.googleClientId) void loadGis().catch(() => undefined)
+  }, [])
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -410,15 +366,9 @@ export default function AdminPage() {
           Guía de estilo
         </Link>
       </div>
-      {round && (
-        <>
-          <CurrentRoundPanel key={`${round.id}-current`} round={round} />
-          {round.status === 'finalized' && <NewRoundPanel key={`${round.id}-new`} round={round} />}
-          <SubmissionsPanel key={`${round.id}-subs`} round={round} />
-          <DangerZone key={`${round.id}-danger`} round={round} />
-        </>
-      )}
-      <HistoryPanel />
+      <ToArchivePanel />
+      <ArchivesPanel />
+      <AllRoundsPanel />
     </div>
   )
 }

@@ -1,8 +1,9 @@
 # Tablón de Imágenes
 
-Competencia interna de imágenes de Grupo Kelsoft. Cada persona sube una imagen y reparte 3 votos entre las de los demás; el administrador abre, cierra y finaliza la competencia y elige al ganador.
+Competencias internas de imágenes de Grupo Kelsoft. Cualquier persona del dominio crea su competencia, pública o privada; en cada una, cada participante sube una imagen y reparte 3 votos entre las de los demás, y quien la creó la abre, la cierra y elige al ganador. El resultado se comparte en Slack como imagen.
 
-- **Especificación completa:** [docs/especificacion.md](docs/especificacion.md) (fuente de verdad).
+- **Especificación completa:** [docs/especificacion-v2.md](docs/especificacion-v2.md) (fuente de verdad; la v1 está en [docs/especificacion.md](docs/especificacion.md)).
+- **Backend:** [docs/supabase.md](docs/supabase.md). **Frontend:** [docs/frontend.md](docs/frontend.md).
 - **Reglas para quien desarrolle:** [CLAUDE.md](CLAUDE.md).
 
 ## Stack
@@ -43,6 +44,7 @@ En `.env.local` para desarrollo y en Netlify para producción.
 | `VITE_SUPABASE_URL` | URL del proyecto: `https://<project-ref>.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | Clave **pública** (anon o publishable). Nunca la `service_role`. |
 | `VITE_ALLOWED_DOMAIN` | `grupokelsoft.com` (solo para el parámetro `hd` y los textos) |
+| `VITE_GOOGLE_CLIENT_ID` | Opcional. Client ID del cliente OAuth de Google (es público), para subir exportaciones a Drive desde el panel del superadmin. Sin ella, solo se puede descargar el ZIP. |
 
 ## Configuración inicial (una sola vez)
 
@@ -56,6 +58,10 @@ Estos pasos son manuales. Proyecto actual: `yirwqhiposuizeuxpeqw`.
    - Orígenes de JavaScript autorizados: `http://localhost:5173` y la URL de Netlify.
    - URI de redireccionamiento autorizados: `https://<project-ref>.supabase.co/auth/v1/callback`.
 4. Copiar el Client ID y el Client Secret (van directo a Supabase, no al repo).
+5. **Para exportar a Drive** (panel del superadmin, opcional):
+   - En **APIs y servicios → Biblioteca**, habilitar la **Google Drive API**.
+   - En la pantalla de consentimiento (**Acceso a los datos**), agregar el alcance `https://www.googleapis.com/auth/drive.file`. Con público "Interno" no hace falta verificación.
+   - El mismo Client ID va en `VITE_GOOGLE_CLIENT_ID` (es público; el Secret no se usa en el navegador).
 
 ### 2. Supabase
 
@@ -73,7 +79,7 @@ El dominio se bloquea en cuatro capas: consentimiento "Interno", parámetro `hd`
 
 1. Conectar el repositorio de Git.
 2. Comando de build: `npm run build`. Carpeta de publicación: `dist` (ya configurado en `netlify.toml`, que también redirige todas las rutas a `index.html`).
-3. Cargar las tres variables de entorno.
+3. Cargar las variables de entorno (las tres de Supabase y, si se usa Drive, `VITE_GOOGLE_CLIENT_ID`).
 4. Con la URL de Netlify ya creada, agregarla en Google Cloud (paso 1.3) y en Supabase (paso 2.3).
 
 ## Base de datos
@@ -89,6 +95,7 @@ Las migraciones están en `supabase/migrations/` y son la única forma de cambia
 | `0005_rpc_admin.sql` | RPC de administración |
 | `0006_storage.sql` | Bucket privado `submissions` y sus políticas |
 | `0007_realtime.sql` | Tablas en la publicación `supabase_realtime` |
+| `0008_v2_schema.sql` a `0013_v2_realtime.sql` | v2: competencias múltiples con dueño y visibilidad, miembros, invitaciones, solicitudes, archivo, políticas por competencia y Realtime (detalle en [docs/supabase.md](docs/supabase.md)) |
 
 Para aplicar migraciones nuevas, con la CLI vinculada:
 
@@ -99,11 +106,11 @@ npx supabase db push --dry-run   # revisar qué se va a aplicar
 npx supabase db push
 ```
 
-El historial remoto usa las mismas versiones que los archivos (`0001` a `0007`). Si alguna vez se aplica una migración con el MCP de Supabase, el MCP la registra con otra versión: hay que alinearla con `npx supabase migration repair`.
+El historial remoto usa las mismas versiones que los archivos (`0001` a `0013`). Si alguna vez se aplica una migración con el MCP de Supabase, el MCP la registra con otra versión: hay que alinearla con `npx supabase migration repair`.
 
 ### Pruebas de las reglas
 
-`supabase/tests/rules.sql` prueba las reglas del juego simulando al admin, usuarios normales, un email de otro dominio y `anon`. Corre dentro de una transacción con `rollback`, así que no deja datos:
+`supabase/tests/rules.sql` prueba las reglas (217 casos) simulando al superadmin, dueños, miembros, usuarios sin acceso, un email de otro dominio y `anon`. Corre dentro de una transacción con `rollback`, así que no deja datos:
 
 ```bash
 npx supabase db query --linked -f supabase/tests/rules.sql -o json
@@ -113,16 +120,16 @@ Todos los casos deben dar `ok = true`.
 
 ## Cómo se usa
 
-1. El admin (`diego.martin.ortino@grupokelsoft.com`) entra en **Admin** y pulsa **Abrir**.
-2. Cada persona publica una imagen (arrastrar, elegir o pegar con Ctrl+V) y reparte sus 3 votos.
-3. El admin pulsa **Cerrar**: todos ven el ranking. Si se cerró antes de tiempo, **Reabrir**.
-4. El admin elige al ganador (aunque haya empate) y pulsa **Finalizar competencia**.
-5. Para la próxima, **Nueva competencia** archiva la actual en el historial.
+1. En el hub (`/`), **Crear competencia**: nombre y visibilidad (pública para todo Kelsoft, o privada). Cada persona puede tener hasta 2 activas.
+2. En **Gestionar**, quien la creó la **Abre**. En una privada, comparte el enlace de invitación, agrega personas o aprueba solicitudes de acceso.
+3. Cada participante publica una imagen (arrastrar, elegir o pegar con Ctrl+V) y reparte sus 3 votos.
+4. Quien la creó la **Cierra** (todos ven el ranking; si fue antes de tiempo, **Reabrir**), elige al ganador (aunque haya empate) y pulsa **Finalizar competencia**.
+5. Con el ganador a la vista, **Compartir resultado** copia una imagen para pegar en Slack.
 
-**Reinicio total** borra la competencia actual sin dejar historial (exige escribir `BORRAR`). **Eliminar del historial** borra una competencia archivada con sus imágenes. La guía de estilo se puede revisar en `/estilos` (solo admin).
+**Borrar competencia** la elimina con sus imágenes (exige escribir `BORRAR`). El superadmin (`diego.martin.ortino@grupokelsoft.com`) puede **Moderar** cualquier competencia y, en **Admin**, exportar y limpiar las que llevan 60 días sin actividad. La guía de estilo se puede revisar en `/estilos` (solo superadmin).
 
 ## Plan gratuito de Supabase
 
-- Los proyectos gratuitos se **pausan tras una semana sin actividad**. Conviene entrar a la app o al panel de Supabase antes de cada competencia.
-- Cada competencia ocupa unos 100 MB de Storage (menos de 100 personas, alrededor de 1 MB por imagen). Si el espacio se acerca al límite, eliminar competencias viejas del historial.
+- Los proyectos gratuitos se **pausan tras una semana sin actividad**. Conviene entrar a la app o al panel de Supabase de vez en cuando.
+- Cada competencia ocupa hasta unos 100 MB de Storage (alrededor de 1 MB por imagen). Lo controlan el límite de 2 activas por persona y la sección **Para archivar** del panel del superadmin, que exporta a Drive y limpia las competencias inactivas.
 - Revisar los límites vigentes de base, Storage y Realtime en la página de precios de Supabase.

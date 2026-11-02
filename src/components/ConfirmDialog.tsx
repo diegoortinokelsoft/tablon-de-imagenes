@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -30,15 +31,15 @@ export default function ConfirmDialog({
   const titleId = useId()
   const cancelRef = useRef<HTMLButtonElement>(null)
 
+  // El foco inicial va a "Cancelar" solo al abrir. Si dependiera de onCancel (una función nueva en
+  // cada render del padre), cada tecla en un campo del diálogo le robaría el foco.
   useEffect(() => {
-    if (!open) return
-    cancelRef.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !pending) onCancel()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, pending, onCancel])
+    if (open) cancelRef.current?.focus()
+  }, [open])
+
+  useEscapeKey(() => {
+    if (!pending) onCancel()
+  }, open)
 
   if (!open) return null
 
