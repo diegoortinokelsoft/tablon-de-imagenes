@@ -13,7 +13,10 @@ export default function HubPage() {
   const { session } = useSession()
   const { isAdmin } = useIsAdmin()
   const { data: rounds = [], isPending, isError, refetch } = useHub()
-  const { data: urls = {} } = useSignedUrls(rounds.map((round) => round.cover_path ?? ''))
+  // Las privadas no muestran portada en el hub: ni siquiera se piden sus URLs firmadas.
+  const { data: urls = {} } = useSignedUrls(
+    rounds.map((round) => (round.visibility === 'private' ? '' : (round.cover_path ?? ''))),
+  )
   const [chosenTab, setChosenTab] = useState<HubTab | null>(null)
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState(false)

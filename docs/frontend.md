@@ -146,7 +146,7 @@ Título del juego, una tarjeta con "¡A jugar!", el botón "Ingresar con Google"
 
 - Título "Competencias" con "Crear competencia". Sin cupo (2 activas), el botón queda deshabilitado y el motivo se muestra debajo.
 - Pestañas Mis competencias, Abiertas, Finalizadas y Todas (arranca en "Mis competencias" si la persona participa en alguna) y buscador sin tildes ni mayúsculas.
-- Tarjetas (`HubCard`) con portada (ganadora o más votada), nombre, candado si es privada, chip de estado o "Archivada", "Tuya", solicitudes pendientes, dueño, participantes y ganador. Las privadas sin acceso no muestran portada ni ganador y llevan "Solicitar acceso" o "Solicitud pendiente".
+- Tarjetas (`HubCard`) con portada (ganadora o más votada, solo en las públicas), nombre, candado si es privada, chip de estado o "Archivada", "Tuya", solicitudes pendientes, dueño, participantes y ganador. Las privadas llevan siempre `PrivateCover` (garabatos SVG con los tokens de la guía y un candado), aunque quien mira tenga acceso, y `HubPage` no pide sus URLs firmadas. Las privadas sin acceso tampoco muestran ganador y llevan "Solicitar acceso" o "Solicitud pendiente".
 - **Crear competencia** (`CreateRoundDialog`): nombre con contador, visibilidad con su explicación, el aviso "El nombre lo ve todo Kelsoft" y el cupo restante. Al crear lleva a `/c/:roundId/gestion`.
 
 ### Competencia (`/c/:roundId`) según el estado
