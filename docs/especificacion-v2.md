@@ -372,10 +372,10 @@ La sección "Para archivar" muestra cuántas competencias esperan y su tamaño a
   - **Finalizadas.**
   - **Todas:** incluye preparadas, cerradas y archivadas.
 - Grilla de tarjetas con las mismas columnas que el tablón. Cada tarjeta lleva:
-  - la portada (`cover_path`), o el patrón de fondo si no hay;
+  - la portada (`cover_path`) solo si es pública, o el patrón de fondo si no hay. Las privadas **nunca** muestran una imagen en el hub, ni siquiera a quien tiene acceso: llevan una portada SVG de garabatos con los colores de la guía y un candado (`PrivateCover`), y el navegador no pide la URL firmada de su imagen;
   - el nombre, el chip de estado, el avatar y el nombre del dueño, y la cantidad de participantes;
   - el chip "TUYA" si soy el dueño, y el contador de solicitudes pendientes.
-- Las privadas sin acceso muestran el ícono de candado, sin portada ni ganador. Llevan "Solicitar acceso" o "Solicitud pendiente".
+- Las privadas sin acceso tampoco muestran el ganador. Llevan "Solicitar acceso" o "Solicitud pendiente".
 - Las archivadas muestran el chip "Archivada" y, si la persona tiene acceso, el ganador guardado en la lápida.
 - Orden: abiertas primero; dentro de cada grupo, por actividad más reciente.
 - Estado vacío: "Todavía no hay competencias. ¡Crea la primera!".

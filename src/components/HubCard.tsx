@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast'
 import { errorMessage } from '../lib/errors'
 import { requestAccess } from '../lib/members'
 import Avatar from './Avatar'
+import PrivateCover from './PrivateCover'
 import StatusChip from './StatusChip'
 
 interface HubCardProps {
@@ -43,16 +44,21 @@ function RequestAccessButton({ roundId }: { roundId: string }) {
   )
 }
 
-/** Tarjeta de una competencia en el hub. Las privadas sin acceso no muestran portada ni ganador. */
+/**
+ * Tarjeta de una competencia en el hub. Las privadas nunca muestran una imagen como portada (llevan
+ * PrivateCover); las privadas sin acceso tampoco muestran ganador.
+ */
 export default function HubCard({ round, coverUrl }: HubCardProps) {
-  const locked = round.my_access === 'none' || round.my_access === 'pending'
+  const isPrivate = round.visibility === 'private'
   const archived = !!round.cleaned_at
-  const CoverIcon = locked ? Lock : archived ? Archive : ImageOff
+  const CoverIcon = archived ? Archive : ImageOff
 
   return (
     <div className="card card-hover flex h-full animate-enter-up flex-col p-3">
       <Link to={`/c/${round.id}`} className="flex flex-1 flex-col rounded-img">
-        {coverUrl ? (
+        {isPrivate ? (
+          <PrivateCover />
+        ) : coverUrl ? (
           <img src={coverUrl} alt="" loading="lazy" className="aspect-card w-full rounded-img object-cover" />
         ) : (
           <span className="flex aspect-card w-full items-center justify-center rounded-img bg-surface-alt text-ink-muted">
