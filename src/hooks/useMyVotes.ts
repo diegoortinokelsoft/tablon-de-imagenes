@@ -1,15 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { summarizeMyVotes } from '../lib/board'
 import { supabase } from '../lib/supabase'
-import { useCurrentRound } from './useCurrentRound'
 import { useSession } from './useSession'
 
-/** Votos propios en la competencia actual: por publicación y los que quedan. */
-export function useMyVotes() {
+/** Votos propios en una competencia: por publicación y los que quedan. */
+export function useMyVotes(roundId: string | undefined) {
   const { session } = useSession()
-  const { data: round } = useCurrentRound()
   const userId = session?.user.id
-  const roundId = round?.id
   return useQuery({
     queryKey: ['my_votes', roundId, userId],
     enabled: !!roundId && !!userId,

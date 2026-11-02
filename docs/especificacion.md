@@ -2,6 +2,8 @@
 
 Oct 21, 2026 · @diego
 
+> **v1, reemplazada por la [v2](especificacion-v2.md).** La v2 describe solo lo que cambia (competencias múltiples con dueño, privadas, hub, imagen del resultado, archivo); lo que no menciona sigue como está acá: reglas de publicación y de votos, compresión de imágenes, guía de estilo, cajón "Mi publicación" y accesibilidad. Lo que cambió en la v2 (una sola competencia actual, administrador único, historial, estado `archived`) ya no aplica.
+
 ## Resumen
 
 Web interna de Grupo Kelsoft para una competencia lúdica de imágenes. Cada persona sube una imagen y reparte 3 votos entre las imágenes de los demás. El administrador controla la competencia y elige al ganador.

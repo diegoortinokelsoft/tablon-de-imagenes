@@ -175,7 +175,7 @@ function ExistingSubmission({ roundId, mine, imageUrl }: { roundId: string; mine
   const saveTitle = async () => {
     setBusy('title')
     try {
-      await updateSubmissionTitle(title)
+      await updateSubmissionTitle(roundId, title)
       notify('Título guardado', 'success')
       await refresh()
     } catch (error) {
@@ -204,7 +204,7 @@ function ExistingSubmission({ roundId, mine, imageUrl }: { roundId: string; mine
   const remove = async () => {
     setBusy('delete')
     try {
-      await deleteMySubmission()
+      await deleteMySubmission(roundId)
       setConfirm(null)
       notify('Publicación borrada', 'success')
       await refresh()

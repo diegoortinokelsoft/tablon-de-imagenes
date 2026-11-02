@@ -1,17 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STATUS_LABELS, formatDate, initials, suggestNextRoundName } from './labels'
-
-describe('suggestNextRoundName', () => {
-  it('incrementa el número final', () => {
-    expect(suggestNextRoundName('Competencia 1')).toBe('Competencia 2')
-    expect(suggestNextRoundName('Ronda 9')).toBe('Ronda 10')
-  })
-
-  it('sin número usa un nombre genérico', () => {
-    expect(suggestNextRoundName('Navidad')).toBe('Nueva competencia')
-    expect(suggestNextRoundName(undefined)).toBe('Nueva competencia')
-  })
-})
+import { STATUS_LABELS, VISIBILITY_LABELS, formatDate, initials } from './labels'
 
 describe('formatDate', () => {
   it('formatea en español', () => {
@@ -33,11 +21,17 @@ describe('initials', () => {
 
 describe('STATUS_LABELS', () => {
   it('usa las etiquetas de la especificación', () => {
-    expect(STATUS_LABELS).toMatchObject({
+    expect(STATUS_LABELS).toEqual({
       pending: 'Preparada',
       open: 'Abierta',
       closed: 'Cerrada',
       finalized: 'Finalizada',
     })
+  })
+})
+
+describe('VISIBILITY_LABELS', () => {
+  it('nombra las dos visibilidades', () => {
+    expect(VISIBILITY_LABELS).toEqual({ public: 'Pública', private: 'Privada' })
   })
 })

@@ -39,4 +39,21 @@ describe('errorMessage', () => {
       expect(ERROR_MESSAGES).toHaveProperty(code)
     }
   })
+
+  it('tiene mensaje para todos los códigos de la v2', () => {
+    for (const code of [
+      'NO_ACCESS', 'NOT_OWNER', 'ROUND_NOT_FOUND', 'ROUND_LIMIT', 'ROUND_CLEANED', 'VISIBILITY_LOCKED',
+      'NOT_PRIVATE', 'INVALID_INVITE', 'ALREADY_HAS_ACCESS', 'REQUEST_PENDING', 'NO_REQUEST', 'NOT_MEMBER',
+      'USER_NOT_FOUND', 'NOT_INACTIVE', 'NOT_EXPORTED',
+    ]) {
+      expect(ERROR_MESSAGES).toHaveProperty(code)
+    }
+  })
+
+  it('traduce los errores de acceso a competencias', () => {
+    expect(errorMessage({ message: 'NO_ACCESS' })).toBe('No tienes acceso a esta competencia')
+    expect(errorMessage({ message: 'ROUND_LIMIT' })).toBe(
+      'Ya tienes 2 competencias activas. Finaliza o borra una para crear otra',
+    )
+  })
 })

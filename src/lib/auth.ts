@@ -68,3 +68,38 @@ export function takeLoginFlash(): string | null {
     return null
   }
 }
+
+// Ruta a la que volver después del login (por ejemplo, un enlace de invitación abierto sin sesión).
+// Google siempre vuelve al origen, así que la ruta se guarda antes de ir a /login.
+const REDIRECT_KEY = 'tablon:after-login'
+
+/** Solo rutas internas (empiezan con una sola /): nunca se redirige a otro sitio. */
+export function isSafeRedirect(path: string | null | undefined): path is string {
+  return !!path && path.startsWith('/') && !path.startsWith('//') && path !== '/' && !path.startsWith('/login')
+}
+
+export function rememberRedirect(path: string) {
+  if (!isSafeRedirect(path)) return
+  try {
+    sessionStorage.setItem(REDIRECT_KEY, path)
+  } catch {
+    // Sin sessionStorage, después del login se cae en el hub.
+  }
+}
+
+export function peekRedirect(): string | null {
+  try {
+    const path = sessionStorage.getItem(REDIRECT_KEY)
+    return isSafeRedirect(path) ? path : null
+  } catch {
+    return null
+  }
+}
+
+export function clearRedirect() {
+  try {
+    sessionStorage.removeItem(REDIRECT_KEY)
+  } catch {
+    // Nada que limpiar.
+  }
+}
