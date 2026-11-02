@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 interface LightboxProps {
   src: string
@@ -13,20 +14,17 @@ interface LightboxProps {
 export default function Lightbox({ src, title, author, onClose }: LightboxProps) {
   const closeRef = useRef<HTMLButtonElement>(null)
 
+  // Solo al abrir y al cerrar: foco, scroll del fondo y devolución del foco. Escape usa el último onClose.
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
     closeRef.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
-      document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
       previous?.focus()
     }
-  }, [onClose])
+  }, [])
+  useEscapeKey(onClose)
 
   return createPortal(
     <div

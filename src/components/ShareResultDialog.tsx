@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Copy, Download, LoaderCircle } from 'lucide-react'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useToast } from '../hooks/useToast'
 import type { Podium } from '../lib/podium'
 import {
@@ -50,14 +51,11 @@ export default function ShareResultDialog({ roundName, finalizedAt, podium, winn
     }
   }, [roundName, finalizedAt, podium, winnerImageUrl])
 
+  // Foco inicial solo al abrir; Escape siempre usa el último onClose.
   useEffect(() => {
     closeRef.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
+  useEscapeKey(onClose)
 
   const copy = async () => {
     if (!blobRef.current) return
