@@ -4,7 +4,7 @@
 
 **Creada**: 2026-11-10
 
-**Estado**: Borrador
+**Estado**: Lista para implementar
 
 **Entrada**: Descripción del usuario: "Importar miembros de otra competencia. Hoy, para armar una competencia privada con el mismo grupo de personas que una anterior, el dueño tiene que agregarlos uno por uno; la especificación v2 dejó "Invitar a los mismos de otra competencia" para una versión posterior. Quiero que, desde la gestión de una competencia privada propia, el dueño pueda elegir otra competencia suya y sumar de una vez a sus miembros. Las personas que ya son miembros no se duplican. Si alguna tenía una solicitud de acceso pendiente, queda aprobada, igual que al agregarla a mano. Al terminar, el dueño ve cuántas personas se sumaron. Solo el dueño de ambas competencias puede hacerlo."
 
@@ -83,8 +83,9 @@ aviso dice "Se sumaron 2 personas".
    sigue siendo miembro de B una sola vez, con su publicación y sus votos intactos, y no cuenta
    entre las personas sumadas.
 2. **Dado** que Y tiene una solicitud pendiente en B y es miembro de A, **cuando** importo de A en
-   B, **entonces** Y queda como miembro de B, su solicitud aparece como aprobada y desaparece de
-   la lista de solicitudes pendientes (y del contador) sin recargar.
+   B, **entonces** Y queda como miembro de B, su solicitud queda aprobada (en la base; la UI no
+   muestra solicitudes aprobadas) y desaparece de la lista de solicitudes pendientes (y del
+   contador) sin recargar.
 3. **Dado** que todos los miembros de A ya son miembros de B, **cuando** importo de A en B,
    **entonces** nada cambia y veo el aviso informativo "No se sumó nadie nuevo".
 
@@ -109,6 +110,12 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
    el mismo mensaje y B no cambia.
 3. **Dado** que soy superadmin y B no es mía, **cuando** intento importar en B, **entonces** falla
    igual: el superadmin no gestiona miembros de competencias ajenas.
+4. **Dado** que soy miembro de B pero no su dueño, **cuando** intento importar en B, **entonces**
+   falla con "Solo quien creó la competencia puede hacer esto" y B no cambia.
+5. **Dado** que uso una cuenta de otro dominio, **cuando** intento importar en B, **entonces** falla
+   con "Solo pueden ingresar cuentas @grupokelsoft.com" (`NOT_ALLOWED`) y B no cambia.
+6. **Dado** que no tengo sesión, **cuando** intento ejecutar la importación, **entonces** se rechaza
+   por falta de permiso (la acción no está disponible sin sesión) y B no cambia.
 
 ### Casos borde
 
@@ -122,15 +129,19 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
   miembro de sus competencias.
 - **Origen que se vacía mientras el diálogo está abierto**: la acción no falla; devuelve 0 y el
   dueño ve "No se sumó nadie nuevo".
-- **Origen sin miembros**: aparece en la lista con "0 miembros" y deshabilitado (no se puede
-  elegir).
+- **Origen que se borra o se limpia durante la importación**: el origen se lee sin bloqueo (para
+  evitar bloqueos cruzados entre dos importaciones). Si el borrado o la limpieza ocurren antes de
+  la lectura, la acción falla con `ROUND_NOT_FOUND` o `ROUND_CLEANED` sin cambios; si ocurren
+  después, la importación usa los miembros que el origen tenía en ese instante.
+- **Origen sin miembros**: si al menos otra privada tiene miembros, aparece en la lista con
+  "0 miembros" y deshabilitado (no se puede elegir).
 - **Origen o destino archivado (limpiado)**: un destino limpiado no tiene panel de gestión y la
   acción falla con `ROUND_CLEANED`. Un origen limpiado no tiene miembros, así que no se ofrece; si
   se intenta, falla con `ROUND_CLEANED`.
 - **Origen o destino inexistente** (por ejemplo, borrado mientras el diálogo estaba abierto):
   falla con `ROUND_NOT_FOUND` y no se agrega a nadie.
-- **No tengo otras privadas**: el control muestra "No tienes otras competencias privadas con
-  miembros" en lugar de la lista.
+- **Ninguna otra privada con miembros** (no tengo otras privadas, o todas tienen 0 miembros): el
+  control muestra "No tienes otras competencias privadas con miembros" en lugar de la lista.
 - **Estados**: el origen puede estar en cualquier estado (lo habitual es que esté finalizada). El
   destino, en cualquier estado sin limpiar, igual que al agregar a mano.
 - **Concurrencia**: si mientras importo alguien entra a B por enlace, o el dueño lo agrega a mano,
@@ -144,6 +155,14 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 - **Solicitudes rechazadas**: una solicitud rechazada en el destino no impide sumar a esa persona,
   igual que con `add_member`. La solicitud rechazada queda como está y la persona queda como
   miembro.
+- **Destino que cambia durante la importación** (visibilidad, borrado o limpieza): no puede pasar.
+  La importación bloquea el destino con `for update` (vía `round_for_owner`), y las acciones que lo
+  cambian (`set_round_visibility`, `delete_round`, `admin_clean_round`) toman el mismo bloqueo, así
+  que esperan a que la importación termine. Si se ejecutan antes, la importación ve el destino ya
+  cambiado y falla con `NOT_PRIVATE`, `ROUND_NOT_FOUND` o `ROUND_CLEANED`.
+- **Personas del origen cuya cuenta ya no existe**: no pueden sumarse. `round_members.user_id`
+  referencia a `profiles` con `on delete cascade`, así que al borrarse un perfil desaparecen
+  también sus membresías; los miembros del origen son siempre perfiles existentes.
 - **Todo o nada**: si la acción falla, no se agrega a nadie ni se aprueba ninguna solicitud.
 
 ## Requisitos *(obligatoria)*
@@ -197,6 +216,7 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 | Miembro de una privada | Nada nuevo (puede ser sumado por la importación) | Importar (`NOT_OWNER`) |
 | Superadmin | Importar solo entre competencias propias, como cualquier dueño | Importar en o desde competencias ajenas (`NOT_OWNER`) |
 | Cuenta de otro dominio | Nada | `NOT_ALLOWED` |
+| Sin sesión | Nada | Rechazado sin permiso: la acción no está disponible para el rol anónimo |
 
 ### Estados de la competencia afectados
 
@@ -266,6 +286,10 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 
 ## Supuestos
 
+- Los avisos en tiempo real de las membresías nuevas y de las solicitudes aprobadas pasan por RLS,
+  como todos los eventos de Realtime: los reciben solo quienes pueden leer esas filas (el dueño del
+  destino, el superadmin y cada persona sumada sobre su propia fila). Nadie sin acceso al destino
+  recibe datos por ese canal.
 - (Confirmado) Solo las competencias privadas tienen miembros, así que solo ellas sirven como origen. No se
   importan "participantes" (quienes publicaron o votaron) de una competencia pública.
 - El dueño no es miembro de sus competencias, así que la importación nunca lo agrega a sí mismo.

@@ -38,7 +38,7 @@ de `rounds` con el conteo de miembros. Detalle en [research.md](research.md).
 
 **Códigos de error nuevos**: ninguno (usa `NOT_ALLOWED`, `NOT_OWNER`, `ROUND_NOT_FOUND`, `ROUND_CLEANED`, `NOT_PRIVATE`)
 
-**Tiempo real**: sin cambios. `round_members` y `access_requests` ya están en la publicación; el canal `round:{id}` relee `round_members` y `access_requests` (`ROUND_QUERY_KEYS`) y el canal `hub` relee `hub` (`HUB_QUERY_KEYS`). El selector usa la clave `['hub', 'import_sources', roundId]` para refrescarse con el canal `hub`
+**Tiempo real**: sin cambios. `round_members` y `access_requests` ya están en la publicación; el canal `round:{id}` relee `round_members` y `access_requests` (`ROUND_QUERY_KEYS`) y el canal `hub` relee `hub` (`HUB_QUERY_KEYS`) ante cambios en `rounds`, `round_members` y `access_requests`. El selector usa la clave `['hub', 'import_sources', roundId]` para refrescarse con el canal `hub`
 
 **Restricciones**: plan gratuito de Supabase (sin impacto: una sola sentencia por importación); límite de 2 competencias activas por dueño, que condiciona la preparación de `rules.sql`
 
@@ -56,7 +56,7 @@ Ver [.specify/memory/constitution.md](../../.specify/memory/constitution.md).
 - [x] **VI. Tokens**: se reutilizan `btn`, `btn-secondary`, `ConfirmDialog`, radios y chips existentes; sin colores ni tamaños nuevos.
 - [x] **Fuente de verdad**: la spec saca "Invitar a los mismos de otra competencia" de lo que queda fuera de alcance en la v2; la v2 se actualiza al cerrar.
 - [x] **Límites**: la RPC se llama en `src/lib/members.ts`; la lectura del selector va en `src/hooks/useMembers.ts`; la UI en `src/pages/ManagePage.tsx` solo llama funciones de `lib` y hooks (no suma llamadas a Supabase en `pages/` ni excepciones nuevas); el cambio de base es una migración nueva.
-- [x] **Tests planificados**: `labels.test.ts` para `importedMembersMessage` y `memberCountLabel`; sin casos nuevos en `errors.test.ts` (no hay códigos nuevos); `rules.sql` con camino feliz, cada error de la RPC, `NOT_ALLOWED` y `NOT_OWNER` (ver contrato).
+- [x] **Tests planificados**: `labels.test.ts` para `importedMembersMessage` y `memberCountLabel`; sin casos nuevos en `errors.test.ts` (no hay códigos nuevos); `rules.sql` con camino feliz, cada error de la RPC, `NOT_ALLOWED`, `NOT_OWNER` y el rol anónimo (ver contrato).
 - [x] **Acciones destructivas**: ninguna. La migración solo crea una función; la RPC no borra nada. `db push` se ejecuta en la fase de implementación con `--dry-run` primero.
 
 **Resultado**: pasa, sin violaciones. Revisado de nuevo después del diseño: sigue pasando.
@@ -89,7 +89,7 @@ src/
 │   ├── members.ts                        # MOD: importMembers()
 │   ├── labels.ts                         # MOD: importedMembersMessage(), memberCountLabel()
 │   └── labels.test.ts                    # MOD: casos de los dos textos
-├── hooks/useMembers.ts                   # MOD: useImportSources()
+├── hooks/useMembers.ts                   # MOD: useImportSources(round, enabled)
 └── pages/ManagePage.tsx                  # MOD: ImportMembers en MembersPanel; run() acepta mensaje según resultado
 
 docs/
@@ -112,8 +112,9 @@ en `ManagePage.tsx` junto a `AddMember` e `InviteLink`, que son sus pares; los t
    `cambio-base-de-datos`.
 2. **Lógica (`src/lib/`)**: `importMembers` en `members.ts`; `importedMembersMessage` y
    `memberCountLabel` en `labels.ts` con sus tests.
-3. **Datos en la UI (`src/hooks/`)**: `useImportSources(round)` en `useMembers.ts`, con la clave
-   `['hub', 'import_sources', roundId]` y `enabled` solo con el diálogo abierto.
+3. **Datos en la UI (`src/hooks/`)**: `useImportSources(round, enabled)` en `useMembers.ts`, con la clave
+   `['hub', 'import_sources', roundId]`, filtro `owner_id = auth.uid()` y `enabled` solo con el
+   diálogo abierto.
 4. **UI (`src/pages/ManagePage.tsx`)**:
    - `useManageAction.run` acepta `success` como texto o como función del resultado, y el tipo de
      toast (`success` o `info`) según el mensaje.

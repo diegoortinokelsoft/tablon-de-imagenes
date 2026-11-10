@@ -65,6 +65,7 @@ clave del selector, `['hub', 'import_sources', roundId]`).
 
 | Caso | Esperado |
 |---|---|
+| Rol anónimo ejecuta la RPC | rechazado (sin permiso) |
 | Intruso (otro dominio) importa | `NOT_ALLOWED` |
 | carla (no dueña) importa en B de beto | `NOT_OWNER` |
 | Superadmin importa en B de beto | `NOT_OWNER` |
@@ -79,7 +80,14 @@ clave del selector, `['hub', 'import_sources', roundId]`).
 | Después: B tiene a carla y dani, una vez cada uno | 2 filas |
 | Después: dani quedó con `source = 'added'` | `added` |
 | Después: la solicitud de dani en B está aprobada | `approved` |
+| Después: `source` y `joined_at` de carla en B sin cambios | iguales a antes |
+| Después: la solicitud pendiente de ana en B (ana no está en A) | sigue `pending`; ana no es miembro de B |
 | Después: A sigue con sus 2 miembros | 2 filas |
 | Repetir A → B | `OK:0` |
 | Origen = destino (A → A) | `OK:0` |
-| Rol anónimo ejecuta la RPC | rechazado (sin permiso) |
+| dani quitado de B, solicitud de ana en B rechazada, ana agregada a A; importar A → B | `OK:2` |
+| Después: dani y ana son miembros de B con `source = 'added'` | `added` |
+| Después: la solicitud de ana en B | sigue `rejected` |
+
+La concurrencia (dos importaciones simultáneas) no se prueba en `rules.sql`: la garantiza la clave
+primaria `(round_id, user_id)` con `on conflict do nothing`.

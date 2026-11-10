@@ -61,8 +61,8 @@ y el resto se resolvió leyendo el código. Cada decisión cita lo que la sostie
 
 ## 5. Selector de orígenes: lectura directa, sin RPC
 
-- **Decisión**: un hook `useImportSources(round)` en `src/hooks/useMembers.ts` que lee `rounds` con
-  el conteo embebido `round_members(count)`, filtrando `owner_id = yo`, `visibility = 'private'`,
+- **Decisión**: un hook `useImportSources(round, enabled)` en `src/hooks/useMembers.ts` que lee
+  `rounds` con el conteo embebido `round_members(count)`, filtrando `owner_id = auth.uid()`, `visibility = 'private'`,
   `cleaned_at is null`, `id <> destino`, ordenado por `created_at` descendente.
 - **Por qué**: el dueño ya puede leer todas las filas de `rounds` y todas las membresías de sus
   competencias (política "Lectura del miembro, el dueño o el superadmin"), así que el conteo es
