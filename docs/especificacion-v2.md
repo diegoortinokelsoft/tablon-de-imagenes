@@ -443,6 +443,7 @@ Se trabaja en una rama `v2` y se verifica cada fase con build, lint y tests ante
 - [x] **Fase 6. Privadas y miembros:** pantalla con candado, solicitudes, enlace de invitación, `/invitacion/:token`, agregar, quitar y salir.
 - [x] **Fase 7. Imagen del resultado:** generador en canvas, modal de vista previa, copiar y descargar.
 - [x] **Fase 8. Superadmin y archivo:** tabla de competencias, "Para archivar", ZIP, subida a Drive, limpieza y lápidas.
+- [x] **Spec 001. Importar miembros de otra competencia:** RPC `import_members` (`0014_import_members.sql`), control "Importar de otra competencia" en "Miembros" y casos en `rules.sql`. Detalle en `specs/001-importar-miembros/`.
 - [ ] **Fase 9. Entrega:** pulido, estados vacíos, README, desplegar el frontend v2 en Netlify y actualizar `CLAUDE.md` y `docs/especificacion.md`.
 
 ## Criterios de aceptación
@@ -463,9 +464,9 @@ Se trabaja en una rama `v2` y se verifica cada fase con build, lint y tests ante
 - [ ] Una solicitud aparece al dueño en menos de 2 segundos; al aprobarla, el solicitante ve la competencia sin recargar.
 - [ ] Una segunda solicitud pendiente devuelve `REQUEST_PENDING`; después de un rechazo se puede volver a pedir.
 - [ ] Quitar a un miembro borra su publicación y sus votos, y quienes lo habían votado recuperan esos votos.
-- [ ] Importar los miembros de otra privada propia suma solo a quienes faltan, sin duplicados (aun con dos importaciones simultáneas), y el número informado coincide con las membresías nuevas.
-- [ ] Al importar, las solicitudes pendientes de los sumados quedan aprobadas y desaparecen de "Solicitudes" sin recargar; las de quienes no vienen del origen no cambian.
-- [ ] Solo el dueño de ambas competencias puede importar: cualquier otro intento (incluido el superadmin en competencias ajenas) devuelve `NOT_OWNER` sin cambios; con una pública, `NOT_PRIVATE`.
+- [x] Importar los miembros de otra privada propia suma solo a quienes faltan, sin duplicados (aun con dos importaciones simultáneas), y el número informado coincide con las membresías nuevas.
+- [x] Al importar, las solicitudes pendientes de los sumados quedan aprobadas y desaparecen de "Solicitudes" sin recargar; las de quienes no vienen del origen no cambian.
+- [x] Solo el dueño de ambas competencias puede importar: cualquier otro intento (incluido el superadmin en competencias ajenas) devuelve `NOT_OWNER` sin cambios; con una pública, `NOT_PRIVATE`.
 
 **Resultado**
 

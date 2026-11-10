@@ -95,9 +95,9 @@ No hay tests de componentes: la UI se verifica a mano con `npm run dev`.
 
 La regla vive en la RPC (T003) y está probada en `rules.sql` (T006); esta fase verifica que la UI la refleja.
 
-- [ ] T018 [US2] Verificar a mano con `npm run dev` el paso 3 de specs/001-importar-miembros/quickstart.md con un miembro previo en el destino: no aparece duplicado en la lista de src/pages/ManagePage.tsx, conserva su etiqueta de origen, y la solicitud pendiente del sumado desaparece de `RequestsPanel` y del contador de "Gestionar" en el encabezado y en el hub sin recargar (FR-008), en menos de 2 segundos a simple vista (SC-005; sin cronómetro). Si no se actualiza, revisar que la clave invalidada por `useManageAction` y el canal `round:{id}` de src/lib/realtime.ts cubran `access_requests`
-- [ ] T019 [US2] Verificar a mano el paso 4 de specs/001-importar-miembros/quickstart.md: repetir la importación muestra el toast informativo (no de error ni de éxito) "No se sumó nadie nuevo" y la lista no cambia
-- [ ] T020 [US2] Verificar a mano con una segunda pestaña abierta en la gestión del destino que, al importar desde la primera, la segunda muestra los miembros nuevos sin recargar (canal `round:{id}`) en menos de 2 segundos a simple vista (SC-005), y que una solicitud pendiente de alguien que **no** está en el origen sigue en "Solicitudes"
+- [x] T018 [US2] Verificar a mano con `npm run dev` el paso 3 de specs/001-importar-miembros/quickstart.md con un miembro previo en el destino: no aparece duplicado en la lista de src/pages/ManagePage.tsx, conserva su etiqueta de origen, y la solicitud pendiente del sumado desaparece de `RequestsPanel` y del contador de "Gestionar" en el encabezado y en el hub sin recargar (FR-008), en menos de 2 segundos a simple vista (SC-005; sin cronómetro). Si no se actualiza, revisar que la clave invalidada por `useManageAction` y el canal `round:{id}` de src/lib/realtime.ts cubran `access_requests`
+- [x] T019 [US2] Verificar a mano el paso 4 de specs/001-importar-miembros/quickstart.md: repetir la importación muestra el toast informativo (no de error ni de éxito) "No se sumó nadie nuevo" y la lista no cambia
+- [x] T020 [US2] Verificar a mano con una segunda pestaña abierta en la gestión del destino que, al importar desde la primera, la segunda muestra los miembros nuevos sin recargar (canal `round:{id}`) en menos de 2 segundos a simple vista (SC-005), y que una solicitud pendiente de alguien que **no** está en el origen sigue en "Solicitudes"
 
 **Checkpoint**: Historias 1 y 2 funcionan. Puertas de calidad y commit si hubo cambios ("Spec 001 – Fase 4: …").
 
@@ -110,7 +110,7 @@ La regla vive en la RPC (T003) y está probada en `rules.sql` (T006); esta fase 
 **Prueba independiente**: Los casos de error de T005 dan `ok = true`, y en la UI el control solo aparece al dueño de una privada.
 
 - [x] T021 [US3] Revisar en src/pages/ManagePage.tsx que `ImportMembers` solo se monta dentro de `MembersPanel`, que a su vez solo se muestra en el modo del dueño de una privada (no en "Moderar" ni en públicas); revisar en src/hooks/useMembers.ts que `useImportSources` filtra por `owner_id` y `visibility = 'private'`
-- [ ] T022 [US3] Verificar a mano con `npm run dev` los pasos 8 y 10 de specs/001-importar-miembros/quickstart.md (pública propia sin sección "Miembros"; superadmin en "Moderar" de una ajena sin importación)
+- [x] T022 [US3] Verificar a mano con `npm run dev` los pasos 8 y 10 de specs/001-importar-miembros/quickstart.md (pública propia sin sección "Miembros"; superadmin en "Moderar" de una ajena sin importación)
 - [x] T023 [US3] Confirmar en la salida de `npx supabase db query --linked -f supabase/tests/rules.sql -o json` que todos los casos de error de la sección "Importar miembros" (T005) dan `ok = true`, y marcar los ítems resueltos de specs/001-importar-miembros/checklists/seguridad.md que esta implementación deja verificados (sin tocar los que siguen pendientes)
 
 **Checkpoint**: Las tres historias funcionan. Puertas de calidad y commit si hubo cambios.
@@ -125,11 +125,11 @@ La regla vive en la RPC (T003) y está probada en `rules.sql` (T006); esta fase 
 - [x] T025 [P] Actualizar docs/supabase.md: fila de `import_members` en "5. Funciones RPC" → "Miembros" (parámetros, quién, devuelve, errores) y la migración `0014_import_members.sql` en la lista de migraciones
 - [x] T026 [P] Actualizar docs/frontend.md, sección "Gestionar": control "Importar de otra competencia", clave `['hub', 'import_sources', roundId]` y que `useManageAction` acepta un mensaje en función del resultado
 - [x] T027 [P] Revisar si CLAUDE.md o README.md necesitan cambios (por ejemplo, la línea de "RPC de miembros" o las decisiones tomadas); si cambia alguna regla, actualizar también .specify/memory/constitution.md en el mismo commit
-- [ ] T028 Verificar a mano con `npm run dev` que las acciones existentes del panel en src/pages/ManagePage.tsx siguen mostrando sus mensajes después del cambio en `useManageAction` (T014): agregar persona → "[nombre] ya es miembro"; quitar miembro → "Miembro quitado"; enlace de invitación → "Enlace copiado" al copiar y "Enlace nuevo generado" al regenerar; cambios de estado (abrir, cerrar, etc.) → sin toast de éxito y con toast de error si fallan; además "Nombre guardado", "Visibilidad guardada", "Solicitud aprobada"/"Solicitud rechazada", y que borrar publicación o competencia sigue mostrando `FILES_WARNING` cuando `filesOk` es falso
-- [ ] T029 Verificar a mano el recorrido completo de specs/001-importar-miembros/quickstart.md, sección 3 (pasos 1 a 10); los criterios de tiempo (SC-001: armar el grupo en menos de 30 s; SC-005: cambios visibles en menos de 2 s) se verifican a simple vista, sin cronómetro
+- [x] T028 Verificar a mano con `npm run dev` que las acciones existentes del panel en src/pages/ManagePage.tsx siguen mostrando sus mensajes después del cambio en `useManageAction` (T014): agregar persona → "[nombre] ya es miembro"; quitar miembro → "Miembro quitado"; enlace de invitación → "Enlace copiado" al copiar y "Enlace nuevo generado" al regenerar; cambios de estado (abrir, cerrar, etc.) → sin toast de éxito y con toast de error si fallan; además "Nombre guardado", "Visibilidad guardada", "Solicitud aprobada"/"Solicitud rechazada", y que borrar publicación o competencia sigue mostrando `FILES_WARNING` cuando `filesOk` es falso
+- [x] T029 Verificar a mano el recorrido completo de specs/001-importar-miembros/quickstart.md, sección 3 (pasos 1 a 10); los criterios de tiempo (SC-001: armar el grupo en menos de 30 s; SC-005: cambios visibles en menos de 2 s) se verifican a simple vista, sin cronómetro
 - [x] T030 Puertas de calidad: `npm test`, `npm run lint`, `npm run build`
 - [x] T031 Puertas de base: `npx supabase db push --dry-run` sin pendientes y `npx supabase db query --linked -f supabase/tests/rules.sql -o json` con todos los casos `ok = true`
-- [ ] T032 Marcar la feature como cerrada en docs/especificacion-v2.md (y las tareas `[x]` en specs/001-importar-miembros/tasks.md); commit ("Spec 001 – Cierre: documentación")
+- [x] T032 Marcar la feature como cerrada en docs/especificacion-v2.md (y las tareas `[x]` en specs/001-importar-miembros/tasks.md); commit ("Spec 001 – Cierre: documentación")
 
 ---
 
