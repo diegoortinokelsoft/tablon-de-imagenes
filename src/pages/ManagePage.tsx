@@ -10,7 +10,7 @@ import { ErrorState, Loading } from '../components/StateMessages'
 import StatusChip from '../components/StatusChip'
 import { useBoard } from '../hooks/useBoard'
 import { useIsAdmin } from '../hooks/useIsAdmin'
-import { useInviteToken, useMembers, usePendingRequests, useProfileSearch, type Person } from '../hooks/useMembers'
+import { useImportSources, useInviteToken, useMembers, usePendingRequests, useProfileSearch, type Person } from '../hooks/useMembers'
 import { useRoundRealtime } from '../hooks/useRealtime'
 import { useRound, useRoundStats, type Round, type RoundStatus } from '../hooks/useRound'
 import { useSession } from '../hooks/useSession'
@@ -18,8 +18,8 @@ import { useSignedUrls } from '../hooks/useSignedUrls'
 import { useToast } from '../hooks/useToast'
 import { tiedPositions, type BoardItem } from '../lib/board'
 import { errorMessage } from '../lib/errors'
-import { VISIBILITY_LABELS, type RoundVisibility } from '../lib/labels'
-import { addMember, inviteUrl, regenerateInviteToken, removeMember, resolveAccessRequest } from '../lib/members'
+import { STATUS_LABELS, VISIBILITY_LABELS, importedMembersMessage, memberCountLabel, type RoundVisibility } from '../lib/labels'
+import { addMember, importMembers, inviteUrl, regenerateInviteToken, removeMember, resolveAccessRequest } from '../lib/members'
 import { HUB_QUERY_KEYS, ROUND_QUERY_KEYS } from '../lib/realtime'
 import { deleteRound, deleteSubmission, finalizeRound, renameRound, setRoundStatus, setRoundVisibility } from '../lib/rounds'
 
@@ -37,6 +37,9 @@ const VISIBILITY_HINTS: Record<RoundVisibility, string> = {
   private: 'Solo la ven y participan quienes tienen acceso.',
 }
 
+/** Mensaje de éxito: un texto fijo (toast de éxito) o uno que depende del resultado de la acción. */
+type SuccessMessage<T> = string | ((result: T) => { message: string; type: 'success' | 'info' })
+
 /** Ejecuta una acción del dueño con estado de carga, toast de error y relectura de los datos. */
 function useManageAction() {
   const { notify } = useToast()
@@ -44,12 +47,15 @@ function useManageAction() {
   const [busy, setBusy] = useState<string | null>(null)
 
   const run = useCallback(
-    async (key: string, action: () => Promise<unknown>, success?: string) => {
+    async <T,>(key: string, action: () => Promise<T>, success?: SuccessMessage<T>) => {
       setBusy(key)
       try {
         const result = await action()
         if (result && typeof result === 'object' && 'filesOk' in result && !result.filesOk) {
           notify(FILES_WARNING, 'error')
+        } else if (typeof success === 'function') {
+          const { message, type } = success(result)
+          notify(message, type)
         } else if (success) {
           notify(success, 'success')
         }
@@ -447,6 +453,90 @@ function AddMember({ round, memberIds }: { round: Round; memberIds: Set<string> 
   )
 }
 
+function ImportMembers({ round }: { round: Round }) {
+  const { busy, run } = useManageAction()
+  const [open, setOpen] = useState(false)
+  const [sourceId, setSourceId] = useState<string | null>(null)
+  const { data: sources, isLoading, error } = useImportSources(round, open)
+  const hasCandidates = (sources ?? []).some((source) => source.memberCount > 0)
+
+  // Si la opción elegida desaparece o se queda sin miembros al releerse, se descarta la elección.
+  if (sourceId && sources && !sources.some((source) => source.id === sourceId && source.memberCount > 0)) {
+    setSourceId(null)
+  }
+
+  const close = () => {
+    setOpen(false)
+    setSourceId(null)
+  }
+
+  const confirm = () => {
+    if (!sourceId) return
+    void run(
+      'import',
+      () => importMembers(round.id, sourceId),
+      (count) => ({ message: importedMembersMessage(count), type: count > 0 ? 'success' : 'info' }),
+    ).then((ok) => {
+      if (ok) close()
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button type="button" className="btn btn-secondary self-start" disabled={busy !== null} onClick={() => setOpen(true)}>
+        Importar de otra competencia
+      </button>
+      <ConfirmDialog
+        open={open}
+        title="Importar miembros"
+        confirmLabel={busy === 'import' ? 'Importando…' : 'Importar'}
+        pending={busy === 'import'}
+        confirmDisabled={!sourceId}
+        onCancel={close}
+        onConfirm={confirm}
+      >
+        <span className="flex flex-col gap-4">
+          <span>Elige una de tus competencias privadas. Sus miembros se sumarán a esta; quienes ya son miembros no se repiten.</span>
+          {isLoading ? (
+            <span className="text-ink-muted">Cargando…</span>
+          ) : error ? (
+            <span role="alert">{errorMessage(error)}</span>
+          ) : !hasCandidates ? (
+            <span className="text-ink-muted">No tienes otras competencias privadas con miembros</span>
+          ) : (
+            <span role="radiogroup" aria-label="Competencia de origen" className="flex flex-col gap-2">
+              {sources!.map((source) => {
+                const empty = source.memberCount === 0
+                const checked = sourceId === source.id
+                return (
+                  <label
+                    key={source.id}
+                    className={`flex items-center gap-3 rounded-btn border-3 p-3 ${
+                      checked ? 'border-brand-600 bg-surface-alt' : 'border-ink'
+                    } ${empty ? 'opacity-45' : 'cursor-pointer'}`}
+                  >
+                    <input
+                      type="radio"
+                      name="origen-importacion"
+                      className="h-5 w-5 shrink-0 accent-brand-600"
+                      checked={checked}
+                      disabled={empty || busy !== null}
+                      onChange={() => setSourceId(source.id)}
+                    />
+                    <span className="min-w-0 text-body text-ink">
+                      {source.name} · {STATUS_LABELS[source.status]} · {memberCountLabel(source.memberCount)}
+                    </span>
+                  </label>
+                )
+              })}
+            </span>
+          )}
+        </span>
+      </ConfirmDialog>
+    </div>
+  )
+}
+
 function MembersPanel({ round }: { round: Round }) {
   const { busy, run } = useManageAction()
   const { data: members = [] } = useMembers(round.id)
@@ -457,10 +547,9 @@ function MembersPanel({ round }: { round: Round }) {
     <Panel title="Miembros">
       <InviteLink round={round} />
       <AddMember round={round} memberIds={memberIds} />
+      <ImportMembers round={round} />
       <div className="flex flex-col gap-2">
-        <span className="text-label uppercase">
-          {members.length === 1 ? '1 miembro' : `${members.length} miembros`}
-        </span>
+        <span className="text-label uppercase">{memberCountLabel(members.length)}</span>
         {members.length === 0 ? (
           <p className="text-secondary text-ink-muted">Todavía no hay miembros: comparte el enlace o agrega personas.</p>
         ) : (
