@@ -80,7 +80,8 @@ clave del selector, `['hub', 'import_sources', roundId]`).
 | Después: B tiene a carla y dani, una vez cada uno | 2 filas |
 | Después: dani quedó con `source = 'added'` | `added` |
 | Después: la solicitud de dani en B está aprobada | `approved` |
-| Después: `source` y `joined_at` de carla en B sin cambios | iguales a antes |
+| Antes de importar, carla en B pasa a `source = 'invite_link'` y `joined_at` de hace un día (como postgres) | — |
+| Después: `source` y `joined_at` de carla en B sin cambios | `invite_link` y la fecha de hace un día |
 | Después: la solicitud pendiente de ana en B (ana no está en A) | sigue `pending`; ana no es miembro de B |
 | Después: A sigue con sus 2 miembros | 2 filas |
 | Repetir A → B | `OK:0` |
