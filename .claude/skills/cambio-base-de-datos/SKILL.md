@@ -29,7 +29,7 @@ La seguridad de la app vive en Postgres: un cambio mal hecho puede abrir una pue
   - Si depende del estado de la competencia: `select * into v_round from public.rounds where id = p_round_id for share;` (usuario) o `for update` (admin).
   - Al final, `revoke execute on function … from public, anon;` y `grant execute on function … to authenticated;`. Las auxiliares internas también se revocan a `authenticated`.
 - Tablas nuevas: `alter table … enable row level security;` y solo políticas de `select` con `(select public.is_allowed_user())`. Revoca los privilegios de escritura a `anon` y `authenticated` como en `0003_rls.sql`.
-- Si la tabla debe verse en tiempo real: `alter publication supabase_realtime add table …` y agrega su clave en `REALTIME_QUERY_KEYS` (`src/lib/realtime.ts`).
+- Si la tabla debe verse en tiempo real: `alter publication supabase_realtime add table …` y agrega su clave en `ROUND_QUERY_KEYS` (datos de una competencia, canal `round:{id}`) o en `HUB_QUERY_KEYS` (listado de competencias, canal `hub`), en `src/lib/realtime.ts`.
 - No se pueden borrar archivos de Storage desde SQL: si la RPC elimina algo con imagen, debe **devolver la ruta o el id** para que el cliente la borre (ver `src/lib/submissions.ts`, `src/lib/rounds.ts`, `src/lib/members.ts` y `src/lib/admin.ts`).
 
 ## 2. Aplicar

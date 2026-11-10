@@ -26,8 +26,10 @@ No hay tests de componentes: la UI se verifica a mano con `npm run dev`.
 ## Rutas del proyecto
 
 - Base de datos: `supabase/migrations/000N_nombre.sql`, `supabase/tests/rules.sql`
-- Lógica y llamadas a Supabase: `src/lib/` (tests `*.test.ts` al lado)
-- Datos en la UI: `src/hooks/`
+- Escrituras (RPC que modifican datos) y Storage: solo en `src/lib/`
+- Lecturas: en `src/hooks/` (dentro de la consulta de TanStack Query) o en `src/lib/`
+- Lógica pura, errores y tipos: `src/lib/` (tests `*.test.ts` al lado)
+- Consultas, mutaciones y Realtime en la UI: `src/hooks/`
 - UI: `src/components/`, `src/pages/`, `src/router.tsx`, `src/styles/components.css`
 - Documentación: `docs/especificacion-v2.md`, `docs/supabase.md`, `docs/frontend.md`
 
