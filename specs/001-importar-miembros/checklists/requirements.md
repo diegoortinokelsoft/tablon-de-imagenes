@@ -33,9 +33,9 @@
 
 - Validado en una iteración, sin marcadores [NEEDS CLARIFICATION].
 - La plantilla del proyecto pide nombrar acciones como RPC y códigos de error (`NOT_OWNER`,
-  `SAME_ROUND`, etc.) en "Roles y acceso" y "Reglas de datos y seguridad". Se mantienen porque son
+  `NOT_PRIVATE`, etc.) en "Roles y acceso" y "Reglas de datos y seguridad". Se mantienen porque son
   el vocabulario de la especificación v2 y no describen el cómo; el diseño de la RPC queda para
   plan.md.
 - Decisiones tomadas por defecto (en "Supuestos"): solo privadas como origen; sin confirmación
-  extra; se importan todos los miembros actuales; error nuevo `SAME_ROUND`. Revisar en
+  extra; se importan todos los miembros actuales. Revisar en
   `/speckit-clarify` si alguna no conviene.

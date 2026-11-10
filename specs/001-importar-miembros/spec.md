@@ -18,9 +18,18 @@
 | "Alcance" (lista de lo que no incluye) | Se quita "Invitar a los mismos de otra competencia (queda para una versión posterior)": pasa a estar incluido |
 | "Acceso a competencias privadas" → "Formas de entrar a una privada" | Nueva forma: "Importar de otra competencia". El dueño suma de una vez a los miembros de otra privada suya, sin aprobación de ellos |
 | "Seguridad: funciones y RPC" → "RPC de miembros" | Nueva acción del dueño para importar miembros de otra competencia; devuelve cuántas personas se sumaron |
-| "Seguridad: funciones y RPC" → códigos de error | Un código nuevo para cuando la competencia de origen es la misma que la de destino (ver "Errores nuevos") |
 | "Criterios de aceptación" | Se suman los criterios de importación (sin duplicados, solicitudes aprobadas, solo el dueño de ambas) |
 | "Pantallas" → "Panel de gestión" → "Miembros" | Nuevo control "Importar de otra competencia" junto al buscador de perfiles |
+
+## Clarifications
+
+### Session 2026-11-10
+
+- Q: ¿Con qué origen se registran en `round_members` las personas sumadas por la importación? → A: `added` (etiqueta "Agregado por ti"), igual que al agregar a mano; no se amplía el enum `member_source` ni se guarda de qué competencia vinieron.
+- Q: ¿Hace falta el error nuevo `SAME_ROUND`, o alcanza con no ofrecer la competencia actual en el selector? → A: Sin `SAME_ROUND`. El selector no ofrece la competencia actual; si se pide igual, la acción termina sin cambios y devuelve 0.
+- Q: ¿Qué ve el dueño cuando la importación no suma a nadie? → A: El aviso informativo (no de error) "No se sumó nadie nuevo", en el mismo lugar que "Se sumaron N personas". Vale para todos los casos de 0 (todos ya eran miembros, origen vaciado mientras tanto, mismo origen); el selector no anticipa el resultado.
+- Q: ¿Solo las competencias privadas sirven como origen, o también los participantes de una pública propia? → A: Solo privadas. Las públicas no aparecen en el selector y la acción las rechaza con `NOT_PRIVATE`.
+- Q: ¿Al tocar "Importar" se suman las personas en el momento, o antes aparece una confirmación? → A: Sin confirmación extra: elegir el origen en el diálogo y tocar "Importar" suma en el momento, igual que agregar a mano.
 
 ## Escenarios de usuario y pruebas *(obligatoria)*
 
@@ -72,7 +81,7 @@ aviso dice "Se sumaron 2 personas".
    B, **entonces** Y queda como miembro de B, su solicitud aparece como aprobada y desaparece de
    la lista de solicitudes pendientes (y del contador) sin recargar.
 3. **Dado** que todos los miembros de A ya son miembros de B, **cuando** importo de A en B,
-   **entonces** nada cambia y veo "No se sumó nadie: todos ya eran miembros".
+   **entonces** nada cambia y veo el aviso informativo "No se sumó nadie nuevo".
 
 ---
 
@@ -102,8 +111,12 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
   con "Esta competencia es pública: no hace falta pedir acceso" (`NOT_PRIVATE`, el mismo error que
   agregar un miembro a mano en una pública).
 - **Origen público**: las públicas no tienen miembros, así que no se ofrecen como origen. Si se
-  intenta igual, falla con `NOT_PRIVATE` (ver Supuestos).
-- **Origen igual al destino**: no se ofrece; si se intenta, falla con `SAME_ROUND`.
+  intenta igual, falla con `NOT_PRIVATE`.
+- **Origen igual al destino**: no se ofrece en el selector. Si se pide igual, la acción termina
+  sin cambios y devuelve 0: todos los miembros del destino ya son miembros y el dueño no es
+  miembro de sus competencias.
+- **Origen que se vacía mientras el diálogo está abierto**: la acción no falla; devuelve 0 y el
+  dueño ve "No se sumó nadie nuevo".
 - **Origen sin miembros**: aparece en la lista con "0 miembros" y deshabilitado (no se puede
   elegir).
 - **Origen o destino archivado (limpiado)**: un destino limpiado no tiene panel de gestión y la
@@ -139,8 +152,9 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
   membresía, su publicación o sus votos.
 - **FR-005**: Para cada persona sumada que tenga una solicitud de acceso pendiente en el destino,
   el sistema MUST marcar esa solicitud como aprobada, igual que al agregarla a mano.
-- **FR-006**: El sistema MUST registrar a las personas sumadas como agregadas por el dueño (el
-  mismo origen de membresía que "Agregar persona").
+- **FR-006**: El sistema MUST registrar a las personas sumadas con el origen `added`, el mismo
+  que "Agregar persona", de modo que en la lista de miembros llevan la etiqueta "Agregado por ti".
+  No se agrega un origen nuevo ni se guarda de qué competencia vinieron.
 - **FR-007**: Al terminar, el sistema MUST informar al dueño cuántas personas se sumaron (0 o más)
   con el texto correspondiente de "Textos de la UI".
 - **FR-008**: La lista de miembros y la de solicitudes del destino MUST actualizarse sin recargar,
@@ -159,7 +173,7 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 | Rol | Puede | No puede (error esperado) |
 |---|---|---|
 | Usuario del dominio | Nada nuevo | Importar en una competencia ajena (`NOT_OWNER`) |
-| Dueño de la competencia | Importar en su privada los miembros de otra privada suya | Importar desde una competencia ajena (`NOT_OWNER`); importar en o desde una pública (`NOT_PRIVATE`); importar de la misma competencia (`SAME_ROUND`); importar en o desde una limpiada (`ROUND_CLEANED`) |
+| Dueño de la competencia | Importar en su privada los miembros de otra privada suya | Importar desde una competencia ajena (`NOT_OWNER`); importar en o desde una pública (`NOT_PRIVATE`); importar en o desde una limpiada (`ROUND_CLEANED`) |
 | Miembro de una privada | Nada nuevo (puede ser sumado por la importación) | Importar (`NOT_OWNER`) |
 | Superadmin | Importar solo entre competencias propias, como cualquier dueño | Importar en o desde competencias ajenas (`NOT_OWNER`) |
 | Cuenta de otro dominio | Nada | `NOT_ALLOWED` |
@@ -173,8 +187,8 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 
 ### Reglas de datos y seguridad
 
-- **Datos nuevos o modificados**: no hay datos nuevos. Se crean membresías en el destino (con
-  origen "agregado por el dueño") y se aprueban solicitudes pendientes, igual que con "Agregar
+- **Datos nuevos o modificados**: no hay datos ni valores de origen nuevos. Se crean membresías
+  en el destino (con origen `added`) y se aprueban solicitudes pendientes, igual que con "Agregar
   persona".
 - **Acciones nuevas o modificadas**: una acción nueva del dueño, "importar miembros", que recibe
   la competencia de destino y la de origen y devuelve la cantidad de personas sumadas. Es una
@@ -185,9 +199,9 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 - **Imágenes (Storage)**: no se suben ni se borran archivos.
 - **Tiempo real**: los cambios en miembros y solicitudes del destino se reflejan como hoy, sin
   recargar.
-- **Errores nuevos**: `SAME_ROUND` → la competencia de origen es la misma que la de destino.
-  Mensaje: "Elige otra competencia distinta de esta". Los demás errores (`NOT_ALLOWED`,
-  `NOT_OWNER`, `NOT_PRIVATE`, `ROUND_NOT_FOUND`, `ROUND_CLEANED`) ya existen.
+- **Errores nuevos**: ninguno. Se usan los existentes (`NOT_ALLOWED`, `NOT_OWNER`,
+  `NOT_PRIVATE`, `ROUND_NOT_FOUND`, `ROUND_CLEANED`). Origen igual al destino no es un error:
+  devuelve 0 sin cambios.
 
 ### Entidades clave
 
@@ -196,7 +210,7 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 - **Competencia de destino**: la competencia privada cuyo panel se está gestionando, que recibe
   los miembros.
 - **Membresía**: relación persona–competencia privada; la importación crea las que falten en el
-  destino, marcadas como agregadas por el dueño.
+  destino, con origen `added`.
 - **Solicitud de acceso**: si una persona sumada tenía una pendiente en el destino, pasa a
   aprobada.
 
@@ -210,9 +224,7 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 - Sin opciones: "No tienes otras competencias privadas con miembros"
 - Botón de confirmación: "Importar"; botón secundario: "Cancelar"
 - Resultado: "Se sumaron N personas" ("Se sumó 1 persona" en singular)
-- Resultado vacío: "No se sumó nadie: todos ya eran miembros"
-- Error `SAME_ROUND`: "Elige otra competencia distinta de esta"
-
+- Resultado vacío (aviso informativo, no de error, en el mismo lugar que el resultado): "No se sumó nadie nuevo"
 ## Criterios de éxito *(obligatoria)*
 
 ### Resultados medibles
@@ -231,12 +243,12 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 
 ## Supuestos
 
-- Solo las competencias privadas tienen miembros, así que solo ellas sirven como origen. No se
+- (Confirmado) Solo las competencias privadas tienen miembros, así que solo ellas sirven como origen. No se
   importan "participantes" (quienes publicaron o votaron) de una competencia pública.
 - El dueño no es miembro de sus competencias, así que la importación nunca lo agrega a sí mismo.
 - Se importan los miembros actuales del origen: quienes salieron o fueron quitados antes no se
   suman, y las solicitudes pendientes o rechazadas del origen se ignoran.
-- No hace falta pedir confirmación aparte de elegir el origen y tocar "Importar": la acción no
+- (Confirmado) No hace falta pedir confirmación aparte de elegir el origen y tocar "Importar": la acción no
   borra nada y cualquier miembro sumado se puede quitar después.
 - Las personas sumadas no cuentan para el límite de 2 competencias activas (ese límite es solo de
   dueños), igual que hoy.
