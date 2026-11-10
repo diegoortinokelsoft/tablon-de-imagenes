@@ -1,113 +1,124 @@
-# Implementation Plan: [FEATURE]
+# Plan de implementación: [FEATURE]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Rama**: `[###-nombre-feature]` | **Fecha**: [FECHA] | **Spec**: [enlace]
 
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Entrada**: Especificación de la feature en `/specs/[###-nombre-feature]/spec.md`
 
-**Note**: This template is filled in by the `/speckit-plan` command; its definition describes the execution workflow.
+**Nota**: Esta plantilla la completa el comando `/speckit-plan`. Todo el plan va en español.
 
-## Summary
+## Resumen
 
-[Extract from feature spec: primary requirement + technical approach from research]
+[Requisito principal de la spec + enfoque técnico surgido de la investigación]
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+<!-- El stack es fijo; completar solo los campos propios de la feature.
+     Lo que no se sepa se marca como NEEDS CLARIFICATION. -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+**Lenguaje/Versión**: TypeScript ~5.8 (`strict`), SQL (PostgreSQL de Supabase, plpgsql)
 
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+**Dependencias principales**: React 18, React Router 6, TanStack Query 5, Tailwind 3, `@supabase/supabase-js` 2, lucide-react [+ dependencias nuevas, justificadas]
 
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+**Almacenamiento**: Supabase Postgres (RLS + RPC `security definer`) y Supabase Storage
 
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+**Tests**: Vitest 3 (`src/lib/*.test.ts`) y `supabase/tests/rules.sql`
 
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Plataforma**: Navegador (SPA en Netlify)
 
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
+**Tipo de proyecto**: SPA con Supabase como backend (sin servidor propio)
 
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
+**Secciones de la especificación v2 afectadas**: [de la spec]
 
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
+**Migraciones nuevas**: [`000N_nombre.sql` o "ninguna"]
 
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**RPC nuevas o modificadas**: [nombre(p_...) → rol: usuario / dueño / superadmin, o "ninguna"]
+
+**Códigos de error nuevos**: [CODIGO o "ninguno"]
+
+**Tiempo real**: [tablas o claves de `REALTIME_QUERY_KEYS` afectadas, o "sin cambios"]
+
+**Restricciones**: [p. ej. plan gratuito de Supabase, límites de Storage, NEEDS CLARIFICATION]
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*PUERTA: debe pasar antes de la Fase 0 (investigación). Se vuelve a revisar después de la Fase 1 (diseño).*
 
-[Gates determined based on constitution file]
+Ver [.specify/memory/constitution.md](../../.specify/memory/constitution.md).
 
-## Project Structure
+- [ ] **I. Toda escritura por RPC**: las escrituras nuevas son RPC `security definer`, `search_path = ''`, nombres calificados y parámetros `p_`; nada de `.insert/.update/.upsert/.delete` en el frontend.
+- [ ] **II. RLS**: toda tabla nueva tiene RLS y solo políticas de `select`.
+- [ ] **III. Dominio y acceso**: todo exige `is_allowed_user()`; el contenido de una competencia, `can_view_round(id)`; la gestión, ser dueño; lo del superadmin, `is_admin()`.
+- [ ] **IV. Sin `service_role`**: solo claves públicas en el frontend.
+- [ ] **V. Español**: textos de la UI en español; cada error nuevo traducido en `src/lib/errors.ts`.
+- [ ] **VI. Tokens**: solo tokens de `tailwind.config.ts` y clases de `src/styles/components.css`.
+- [ ] **Fuente de verdad**: la spec no contradice `docs/especificacion-v2.md`, o la contradicción está resuelta con la persona.
+- [ ] **Límites**: solo `src/lib/` llama a Supabase; los cambios de base van en migraciones nuevas.
+- [ ] **Tests planificados**: Vitest para la lógica nueva de `src/lib/`; `errors.test.ts` por cada error; `rules.sql` por cada RPC (camino feliz, errores propios, `NOT_ALLOWED`, y `NOT_OWNER` o `NOT_ADMIN` según el rol).
+- [ ] **Acciones destructivas**: identificadas y confirmadas con la persona antes de ejecutarlas.
 
-### Documentation (this feature)
+## Estructura del proyecto
+
+### Documentación (esta feature)
 
 ```text
 specs/[###-feature]/
-├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+├── plan.md              # Este archivo (salida de /speckit-plan)
+├── research.md          # Fase 0 (/speckit-plan)
+├── data-model.md        # Fase 1 (/speckit-plan): tablas, columnas, vistas, políticas
+├── quickstart.md        # Fase 1 (/speckit-plan): cómo probar la feature a mano
+├── contracts/           # Fase 1 (/speckit-plan): firmas de RPC, permisos y códigos de error
+└── tasks.md             # Fase 2 (/speckit-tasks, NO lo crea /speckit-plan)
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Código fuente (raíz del repo)
+
+<!-- Dejar solo los archivos que la feature crea (NUEVO) o modifica (MOD). -->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+supabase/
+├── migrations/000N_[nombre].sql      # NUEVO: migración de la feature
+└── tests/rules.sql                    # MOD: casos de las reglas nuevas
+
 src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+├── lib/
+│   ├── database.types.ts              # MOD: regenerado con npm run types
+│   ├── errors.ts / errors.test.ts     # MOD: códigos de error nuevos
+│   ├── [rounds|submissions|members|admin].ts   # MOD: llamadas a las RPC
+│   └── [nuevo].ts / [nuevo].test.ts   # lógica pura nueva
+├── hooks/use[Nombre].ts               # consultas/mutaciones de TanStack Query
+├── components/[Nombre].tsx
+├── pages/[Nombre]Page.tsx
+├── router.tsx                         # si hay rutas nuevas
+└── styles/components.css              # si hay clases reutilizables nuevas
 
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+docs/
+├── especificacion-v2.md               # MOD al cerrar la feature
+├── supabase.md                        # MOD si cambian modelo, RPC, Storage o Realtime
+└── frontend.md                        # MOD si cambian rutas, pantallas o datos
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Decisión de estructura**: [Archivos concretos que se tocan y por qué]
 
-## Complexity Tracking
+## Fases de implementación
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+1. **Base de datos** (si aplica): migración `000N`, casos en `rules.sql`, ensayo con `begin; … rollback;`, `db push --dry-run`, `db push`, `npm run types`. Seguir el skill `cambio-base-de-datos`.
+2. **Lógica (`src/lib/`)**: llamadas a RPC, lógica pura con tests, mensajes de error.
+3. **Datos en la UI (`src/hooks/`)**: consultas, mutaciones e invalidación de claves; tiempo real.
+4. **UI (`src/components/`, `src/pages/`)**: pantallas y textos en español con tokens de la guía.
+5. **Cierre**: actualizar `docs/especificacion-v2.md` (y los otros docs si corresponde) y correr las puertas de calidad.
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+## Puertas de calidad (manuales, sin CI)
+
+- [ ] `npm test`
+- [ ] `npm run lint`
+- [ ] `npm run build`
+- [ ] `npx supabase db push --dry-run` (si hay migraciones)
+- [ ] `npx supabase db query --linked -f supabase/tests/rules.sql -o json` con todos los casos `ok = true` (si hay migraciones)
+
+## Seguimiento de complejidad
+
+> **Completar SOLO si el Constitution Check tiene violaciones que haya que justificar**
+
+| Violación | Por qué hace falta | Alternativa más simple descartada porque |
+|-----------|--------------------|------------------------------------------|
+| [p. ej. dependencia nueva] | [necesidad concreta] | [por qué no alcanza lo existente] |

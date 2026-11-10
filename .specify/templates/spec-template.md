@@ -1,131 +1,142 @@
-# Feature Specification: [FEATURE NAME]
+# Especificación de feature: [NOMBRE DE LA FEATURE]
 
-**Feature Branch**: `[###-feature-name]`
+**Rama**: `[###-nombre-feature]`
 
-**Created**: [DATE]
+**Creada**: [FECHA]
 
-**Status**: Draft
+**Estado**: Borrador
 
-**Input**: User description: "$ARGUMENTS"
+**Entrada**: Descripción del usuario: "$ARGUMENTS"
 
-## User Scenarios & Testing *(mandatory)*
+> Esta spec describe **solo el cambio**. La fuente de verdad del sistema es
+> [docs/especificacion-v2.md](../../docs/especificacion-v2.md); al cerrar la feature se actualiza.
+
+## Referencia a la especificación v2 *(obligatoria)*
 
 <!--
-  IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
-  Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
-  you should still have a viable MVP (Minimum Viable Product) that delivers value.
-
-  Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
-  Think of each story as a standalone slice of functionality that can be:
-  - Developed independently
-  - Tested independently
-  - Deployed independently
-  - Demonstrated to users independently
+  Qué secciones de docs/especificacion-v2.md toca esta feature y qué cambia en cada una.
+  Si no toca ninguna sección existente, decir qué sección nueva habrá que agregar.
 -->
 
-### User Story 1 - [Brief Title] (Priority: P1)
+| Sección de la v2 | Qué cambia |
+|---|---|
+| [p. ej. "Competencias"] | [Descripción breve del cambio] |
 
-[Describe this user journey in plain language]
+## Escenarios de usuario y pruebas *(obligatoria)*
 
-**Why this priority**: [Explain the value and why it has this priority level]
+<!--
+  Las historias van PRIORIZADAS (P1, P2, P3...) y cada una se puede probar por separado:
+  si se implementa solo una, igual entrega valor.
+  Roles posibles: usuario, dueño de la competencia, miembro de una privada, superadmin,
+  alguien sin acceso a una privada.
+-->
 
-**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action] and delivers [specific value]"]
+### Historia 1 - [Título breve] (Prioridad: P1)
 
-**Acceptance Scenarios**:
+[Recorrido del usuario en lenguaje simple]
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-2. **Given** [initial state], **When** [action], **Then** [expected outcome]
+**Por qué esta prioridad**: [Valor que aporta]
+
+**Prueba independiente**: [Cómo se prueba sola, p. ej. "Se prueba creando una competencia y ..."]
+
+**Escenarios de aceptación**:
+
+1. **Dado** [estado inicial], **cuando** [acción], **entonces** [resultado esperado]
+2. **Dado** [estado inicial], **cuando** [acción], **entonces** [resultado esperado]
 
 ---
 
-### User Story 2 - [Brief Title] (Priority: P2)
+### Historia 2 - [Título breve] (Prioridad: P2)
 
-[Describe this user journey in plain language]
+[Recorrido del usuario en lenguaje simple]
 
-**Why this priority**: [Explain the value and why it has this priority level]
+**Por qué esta prioridad**: [Valor que aporta]
 
-**Independent Test**: [Describe how this can be tested independently]
+**Prueba independiente**: [Cómo se prueba sola]
 
-**Acceptance Scenarios**:
+**Escenarios de aceptación**:
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-
----
-
-### User Story 3 - [Brief Title] (Priority: P3)
-
-[Describe this user journey in plain language]
-
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently]
-
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
+1. **Dado** [estado inicial], **cuando** [acción], **entonces** [resultado esperado]
 
 ---
 
-[Add more user stories as needed, each with an assigned priority]
+[Agregar más historias si hace falta, cada una con su prioridad]
 
-### Edge Cases
+### Casos borde
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
--->
+<!-- Pensar especialmente en: competencia privada sin acceso, cada estado de la competencia,
+     superadmin vs. dueño, concurrencia (dos personas a la vez) y tiempo real. -->
 
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+- ¿Qué pasa cuando [condición límite]?
+- ¿Cómo responde el sistema ante [escenario de error]?
 
-## Requirements *(mandatory)*
+## Requisitos *(obligatoria)*
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right functional requirements.
--->
+### Requisitos funcionales
 
-### Functional Requirements
+- **FR-001**: El sistema MUST [capacidad concreta]
+- **FR-002**: Los usuarios MUST poder [interacción clave]
+- **FR-003**: El sistema MUST [regla de datos o de comportamiento]
 
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
+*Ejemplo de requisito sin definir:*
 
-*Example of marking unclear requirements:*
+- **FR-004**: El sistema MUST [NEEDS CLARIFICATION: pregunta concreta]
 
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+### Roles y acceso
 
-### Key Entities *(include if feature involves data)*
+<!-- Quién puede ver y hacer qué. Eliminar filas que no apliquen. -->
 
-- **[Entity 1]**: [What it represents, key attributes without implementation]
-- **[Entity 2]**: [What it represents, relationships to other entities]
+| Rol | Puede | No puede (error esperado) |
+|---|---|---|
+| Usuario del dominio | [ ] | [ ] |
+| Dueño de la competencia | [ ] | [ ] |
+| Miembro de una privada | [ ] | [ ] |
+| Sin acceso a la privada | [ ] | [p. ej. `NO_ACCESS`] |
+| Superadmin | [ ] | [ ] |
+| Cuenta de otro dominio | Nada | `NOT_ALLOWED` |
 
-## Success Criteria *(mandatory)*
+### Estados de la competencia afectados
 
-<!--
-  ACTION REQUIRED: Define measurable success criteria.
-  These must be technology-agnostic and measurable.
--->
+<!-- Qué cambia en cada estado (pending, open, closed, finalized).
+     Eliminar la sección si la feature no depende del estado. -->
 
-### Measurable Outcomes
+- **[estado]**: [Qué se permite o cambia]
 
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+### Reglas de datos y seguridad *(si la feature toca la base)*
 
-## Assumptions
+<!-- Solo el QUÉ, sin SQL. El cómo va en plan.md. Eliminar la sección si no aplica. -->
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right assumptions based on reasonable defaults
-  chosen when the feature description did not specify certain details.
--->
+- **Datos nuevos o modificados**: [Qué información se guarda y de quién es]
+- **Acciones nuevas o modificadas**: [Qué se puede hacer y quién; toda escritura es por RPC]
+- **Visibilidad**: [Quién ve qué; contenido de privadas solo con acceso]
+- **Imágenes (Storage)**: [Si se suben o borran archivos]
+- **Tiempo real**: [Qué debe actualizarse sin recargar]
+- **Errores nuevos**: [`CODIGO` → cuándo ocurre]
 
-- [Assumption about target users, e.g., "Users have stable internet connectivity"]
-- [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
-- [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
-- [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]
+### Entidades clave *(si la feature maneja datos)*
+
+- **[Entidad]**: [Qué representa, atributos clave sin detalles de implementación]
+
+### Textos de la UI
+
+<!-- Textos en español que aparecen en pantalla: botones, títulos, mensajes vacíos y de error.
+     Eliminar la sección si no hay textos nuevos. -->
+
+- [Lugar]: "[texto]"
+
+## Criterios de éxito *(obligatoria)*
+
+<!-- Medibles y sin detalles de tecnología. -->
+
+### Resultados medibles
+
+- **SC-001**: [Métrica medible, p. ej. "Una solicitud aparece al dueño en menos de 2 segundos"]
+- **SC-002**: [Métrica medible]
+
+## Supuestos
+
+- [Supuesto sobre usuarios, alcance o datos]
+
+## Fuera de alcance
+
+- [Lo que esta feature explícitamente no hace]
