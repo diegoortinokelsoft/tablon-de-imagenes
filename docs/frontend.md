@@ -100,6 +100,7 @@ src/
 | `['round_members', roundId, …]` | `useMembers`, `useIsMember` | `round_members` con el perfil embebido |
 | `['access_requests', roundId, …]` | `usePendingRequests`, `useMyPendingRequest` | `access_requests` pendientes |
 | `['invite_token', roundId]` | `useInviteToken` | `rpc('get_invite_link')` (solo el dueño de una privada) |
+| `['hub', 'import_sources', roundId]` | `useImportSources` | `rounds` propias, privadas y sin limpiar (menos la actual) con `round_members(count)`; solo con el diálogo de importar abierto. Bajo `hub` para que el canal `hub` la refresque |
 | `['profile', id]`, `['profile_search', término]` | `useProfile`, `useProfileSearch` | `profiles` (dueño de una competencia; agregar miembros) |
 | `['signed_urls', paths]` | `useSignedUrls` | `createSignedUrls` en lote, 1 h; se renuevan a los 50 min |
 | `['is_admin', userId]` | `useIsAdmin` | `rpc('is_admin')`, sin vencimiento |
@@ -112,6 +113,8 @@ Las acciones viven en `lib/submissions.ts` (participar), `lib/rounds.ts` (dueño
 1. deshabilitan el botón mientras la acción responde,
 2. muestran el error traducido en un toast si falla,
 3. invalidan las claves afectadas (y Realtime refresca a los demás navegadores).
+
+En `ManagePage`, `useManageAction().run(key, action, success?)` reúne los tres pasos e invalida `ROUND_QUERY_KEYS` y `HUB_QUERY_KEYS`. `success` es un texto fijo (toast de éxito) o una función del resultado que devuelve `{ message, type: 'success' | 'info' }`.
 
 ### Tiempo real
 
@@ -203,7 +206,7 @@ Es la pieza de UX más particular de la app (`SubmissionDrawer` + `MySubmissionP
 Para el dueño, paneles de arriba abajo:
 1. **Competencia:** nombre editable, chip de estado y solo el botón válido (Abrir, Cerrar o Reabrir), visibilidad (editable solo en preparada, con el motivo cuando está bloqueada) y números: participantes (publicaron o votaron), publicaciones y votos emitidos.
 2. **Solicitudes** (solo privadas): pendientes con "Aprobar" y "Rechazar".
-3. **Miembros** (solo privadas): enlace de invitación con "Copiar" y "Generar nuevo enlace" (con confirmación), buscador de perfiles por nombre o email para agregar, y la lista con el origen de cada miembro y "Quitar".
+3. **Miembros** (solo privadas): enlace de invitación con "Copiar" y "Generar nuevo enlace" (con confirmación), buscador de perfiles por nombre o email para agregar, "Importar de otra competencia" y la lista con el origen de cada miembro y "Quitar". "Importar de otra competencia" abre un diálogo con las otras privadas propias ("[nombre] · [estado] · N miembros"; las de 0, deshabilitadas); "Importar" se habilita al elegir una y muestra "Se sumaron N personas" (éxito) o "No se sumó nadie nuevo" (informativo). Si falla, el diálogo queda abierto.
 4. **Publicaciones** ordenadas por votos con "Borrar". Con la competencia cerrada, un selector de ganador por fila, el aviso de empate en el primer puesto y "Finalizar competencia".
 5. **Zona de peligro:** "Borrar competencia", que exige escribir `BORRAR` y vuelve al hub.
 

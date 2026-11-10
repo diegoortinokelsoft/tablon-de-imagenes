@@ -25,7 +25,7 @@ Este documento parte de [especificacion.md](especificacion.md) (v1) y describe s
 
 - Crear competencias públicas o privadas, con límite de 2 activas por dueño.
 - Hub de inicio con todas las competencias; las privadas aparecen con candado.
-- Acceso a privadas por enlace de invitación, por agregado del dueño o por solicitud aprobada.
+- Acceso a privadas por enlace de invitación, por agregado del dueño, por importación de los miembros de otra privada del mismo dueño o por solicitud aprobada.
 - Panel de gestión por competencia para su dueño.
 - Imagen del resultado generada en el navegador, para copiar o descargar.
 - Panel del superadmin con moderación y la sección "Para archivar" (ZIP a Drive y limpieza).
@@ -40,7 +40,6 @@ Este documento parte de [especificacion.md](especificacion.md) (v1) y describe s
 - Publicación automática en Slack y cualquier función de servidor (Edge Functions, `pg_cron`).
 - Exportación y limpieza automáticas: las dispara el superadmin a mano.
 - Transferir la propiedad de una competencia y tener coadministradores.
-- "Invitar a los mismos de otra competencia" (queda para una versión posterior).
 
 ## Roles
 
@@ -93,6 +92,7 @@ Los datos generales (nombre, dueño, estado, visibilidad, fechas y cantidad de p
 | --- | --- |
 | Enlace de invitación | El dueño copia un enlace `/invitacion/{token}`. Quien lo abre queda como miembro sin aprobación. El dueño puede regenerar el token, lo que invalida el enlace anterior |
 | Agregar persona | El dueño elige entre los perfiles existentes (quienes ya iniciaron sesión alguna vez) |
+| Importar de otra competencia | El dueño elige otra privada suya y suma de una vez a todos sus miembros, sin aprobación de ellos. Quienes ya son miembros no se repiten ni cambian; las solicitudes pendientes de los sumados quedan aprobadas. Solo entre privadas propias sin limpiar; el superadmin no tiene excepción |
 | Solicitud de acceso | Desde la competencia con candado, el usuario toca "Solicitar acceso". El dueño la aprueba o la rechaza. Se permite una sola solicitud pendiente por persona y competencia; después de un rechazo se puede volver a pedir |
 
 **Avisos.** No hay emails. El dueño ve la cantidad de solicitudes pendientes en la tarjeta del hub y en su panel, en tiempo real. Quien pidió acceso ve "Solicitud pendiente" en lugar del botón.
@@ -243,6 +243,7 @@ Siguen vigentes las reglas de la v1: toda escritura por RPC `security definer` c
 | `regenerate_invite_link(p_round_id)` | Dueño | Cambia el token; devuelve el nuevo |
 | `join_with_invite(p_token)` | Usuario | El token llega como texto desde la URL; si no es un uuid válido, `INVALID_INVITE`. Lo agrega como miembro (`invite_link`); devuelve el id de la competencia. Si ya era miembro o dueño, solo devuelve el id. Si tenía una solicitud pendiente, la marca aprobada |
 | `add_member(p_round_id, p_user_id)` | Dueño | Agrega (`added`); si había solicitud pendiente, la aprueba |
+| `import_members(p_round_id, p_source_round_id)` | Dueño de ambas | Agrega como miembros del destino (`added`) a los miembros del origen que no lo sean ya y aprueba sus solicitudes pendientes en el destino; devuelve cuántas personas se sumaron. Ambas privadas y sin limpiar (`NOT_PRIVATE`, `ROUND_CLEANED`); origen = destino devuelve 0. Todo o nada; el origen no cambia |
 | `remove_member(p_round_id, p_user_id)` | Dueño | Borra su publicación y sus votos en esa competencia; devuelve la ruta de la imagen, si había |
 | `leave_round(p_round_id)` | Miembro | Igual que `remove_member` sobre sí mismo |
 | `request_access(p_round_id)` | Usuario | Solo privadas; sin acceso; sin solicitud pendiente |
@@ -397,6 +398,7 @@ La sección "Para archivar" muestra cuántas competencias esperan y su tamaño a
 - **Miembros** (solo privadas):
   - enlace de invitación con "Copiar" y "Generar nuevo enlace" (con confirmación);
   - buscador de perfiles para agregar;
+  - "Importar de otra competencia": diálogo con las otras privadas propias ("[nombre] · [estado] · N miembros"; las de 0 miembros, deshabilitadas) y el resultado "Se sumaron N personas" o el aviso informativo "No se sumó nadie nuevo";
   - lista de miembros con "Quitar", que confirma: "Se borrarán su publicación y sus votos".
 - **Solicitudes:** lista de pendientes con "Aprobar" y "Rechazar".
 - **Zona de peligro:** "Borrar competencia", que exige escribir `BORRAR`.
@@ -461,6 +463,9 @@ Se trabaja en una rama `v2` y se verifica cada fase con build, lint y tests ante
 - [ ] Una solicitud aparece al dueño en menos de 2 segundos; al aprobarla, el solicitante ve la competencia sin recargar.
 - [ ] Una segunda solicitud pendiente devuelve `REQUEST_PENDING`; después de un rechazo se puede volver a pedir.
 - [ ] Quitar a un miembro borra su publicación y sus votos, y quienes lo habían votado recuperan esos votos.
+- [ ] Importar los miembros de otra privada propia suma solo a quienes faltan, sin duplicados (aun con dos importaciones simultáneas), y el número informado coincide con las membresías nuevas.
+- [ ] Al importar, las solicitudes pendientes de los sumados quedan aprobadas y desaparecen de "Solicitudes" sin recargar; las de quienes no vienen del origen no cambian.
+- [ ] Solo el dueño de ambas competencias puede importar: cualquier otro intento (incluido el superadmin en competencias ajenas) devuelve `NOT_OWNER` sin cambios; con una pública, `NOT_PRIVATE`.
 
 **Resultado**
 
