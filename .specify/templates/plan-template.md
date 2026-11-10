@@ -35,7 +35,7 @@
 
 **Códigos de error nuevos**: [CODIGO o "ninguno"]
 
-**Tiempo real**: [tablas o claves de `REALTIME_QUERY_KEYS` afectadas, o "sin cambios"]
+**Tiempo real**: [tablas, y claves de `ROUND_QUERY_KEYS` / `HUB_QUERY_KEYS` (`src/lib/realtime.ts`) afectadas, o "sin cambios"]
 
 **Restricciones**: [p. ej. plan gratuito de Supabase, límites de Storage, NEEDS CLARIFICATION]
 
@@ -52,7 +52,7 @@ Ver [.specify/memory/constitution.md](../../.specify/memory/constitution.md).
 - [ ] **V. Español**: textos de la UI en español; cada error nuevo traducido en `src/lib/errors.ts`.
 - [ ] **VI. Tokens**: solo tokens de `tailwind.config.ts` y clases de `src/styles/components.css`.
 - [ ] **Fuente de verdad**: la spec no contradice `docs/especificacion-v2.md`, o la contradicción está resuelta con la persona.
-- [ ] **Límites**: solo `src/lib/` llama a Supabase; los cambios de base van en migraciones nuevas.
+- [ ] **Límites**: las escrituras por RPC y Storage van en `src/lib/`; las lecturas, en `src/hooks/` o `src/lib/`; ninguna capa importa de una superior; no se suman llamadas en `pages/` ni `components/`; los cambios de base van en migraciones nuevas.
 - [ ] **Tests planificados**: Vitest para la lógica nueva de `src/lib/`; `errors.test.ts` por cada error; `rules.sql` por cada RPC (camino feliz, errores propios, `NOT_ALLOWED`, y `NOT_OWNER` o `NOT_ADMIN` según el rol).
 - [ ] **Acciones destructivas**: identificadas y confirmadas con la persona antes de ejecutarlas.
 

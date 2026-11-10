@@ -1,6 +1,14 @@
 <!--
 Informe de sincronización
-- Versión: plantilla → 1.0.0 (primera ratificación, generada con /speckit-brownfield-bootstrap)
+- Versión: 1.0.0 → 1.0.1 (PATCH: aclaración de la regla de capas según el código real; resultado
+  de /speckit-brownfield-validate, opción a)
+- Principios modificados: ninguno
+- Secciones modificadas: "Arquitectura y límites del código" (lecturas en src/hooks/ o src/lib/,
+  escrituras por RPC en src/lib/, ninguna capa importa de una superior, excepciones existentes)
+- Secciones agregadas/quitadas: ninguna
+- Plantillas: plan-template.md actualizado (Constitution Check "Límites" y ROUND_QUERY_KEYS /
+  HUB_QUERY_KEYS); spec-template.md y tasks-template.md sin cambios
+- TODO pendientes: ninguno
 - Principios: I–VI tomados de "Reglas que nunca se rompen" de CLAUDE.md
 - Secciones agregadas: Fuente de verdad, Arquitectura y límites del código, Convenciones,
   Tests, Puertas de calidad, Flujo de trabajo, Gobernanza
@@ -74,8 +82,18 @@ replica los colores y un test verifica que coincidan.
 | Base de datos | `supabase/migrations/000N_*.sql` | Esquema, RLS, RPC, Storage, Realtime |
 | Pruebas de la base | `supabase/tests/rules.sql` | Reglas de RLS y RPC |
 
-- Las dependencias van en un solo sentido: `pages` → `components` → `hooks` → `lib` → Supabase.
-  Solo `src/lib/` llama a `supabase.rpc` y a Storage.
+- Ninguna capa importa de una capa superior: `lib` no importa de `hooks`, `components` ni `pages`;
+  `hooks` no importa de `components` ni `pages`; `components` no importa de `pages`. Una capa sí puede
+  saltear las intermedias (una página puede importar de `src/lib/`).
+- Lecturas (`select` sobre tablas y vistas, y RPC de solo lectura como `hub_rounds` o `round_stats`):
+  en `src/hooks/` (dentro de la consulta de TanStack Query) o en `src/lib/`.
+- Escrituras (RPC que modifican datos) y Storage: solo en `src/lib/`.
+- Excepciones existentes (las únicas permitidas):
+  - `src/pages/RoundPage.tsx`: `cast_vote` y `remove_vote`;
+  - `src/components/SessionProvider.tsx`: `sync_my_profile`;
+  - `src/pages/AdminPage.tsx`: lectura directa de `rounds`.
+
+  El código nuevo MUST NOT sumar excepciones a esta lista.
 - `src/lib/database.types.ts` se genera con `npm run types`; no se edita a mano.
 - Cada cambio de base es una migración nueva. Nunca se edita una migración ya aplicada ni se modifica la
   base fuera de migraciones. El procedimiento está en el skill `cambio-base-de-datos` y en
@@ -136,4 +154,4 @@ No hay CI. Antes de cerrar cada fase se corren a mano, y todas MUST pasar:
 - Enmiendas: versión semántica. MAJOR si se quita o redefine un principio; MINOR si se agrega un
   principio o sección; PATCH para aclaraciones.
 
-**Versión**: 1.0.0 | **Ratificada**: 2026-11-10 | **Última enmienda**: 2026-11-10
+**Versión**: 1.0.1 | **Ratificada**: 2026-11-10 | **Última enmienda**: 2026-11-10
