@@ -109,9 +109,9 @@ La regla vive en la RPC (T003) y está probada en `rules.sql` (T006); esta fase 
 
 **Prueba independiente**: Los casos de error de T005 dan `ok = true`, y en la UI el control solo aparece al dueño de una privada.
 
-- [ ] T021 [US3] Revisar en src/pages/ManagePage.tsx que `ImportMembers` solo se monta dentro de `MembersPanel`, que a su vez solo se muestra en el modo del dueño de una privada (no en "Moderar" ni en públicas); revisar en src/hooks/useMembers.ts que `useImportSources` filtra por `owner_id` y `visibility = 'private'`
+- [x] T021 [US3] Revisar en src/pages/ManagePage.tsx que `ImportMembers` solo se monta dentro de `MembersPanel`, que a su vez solo se muestra en el modo del dueño de una privada (no en "Moderar" ni en públicas); revisar en src/hooks/useMembers.ts que `useImportSources` filtra por `owner_id` y `visibility = 'private'`
 - [ ] T022 [US3] Verificar a mano con `npm run dev` los pasos 8 y 10 de specs/001-importar-miembros/quickstart.md (pública propia sin sección "Miembros"; superadmin en "Moderar" de una ajena sin importación)
-- [ ] T023 [US3] Confirmar en la salida de `npx supabase db query --linked -f supabase/tests/rules.sql -o json` que todos los casos de error de la sección "Importar miembros" (T005) dan `ok = true`, y marcar los ítems resueltos de specs/001-importar-miembros/checklists/seguridad.md que esta implementación deja verificados (sin tocar los que siguen pendientes)
+- [x] T023 [US3] Confirmar en la salida de `npx supabase db query --linked -f supabase/tests/rules.sql -o json` que todos los casos de error de la sección "Importar miembros" (T005) dan `ok = true`, y marcar los ítems resueltos de specs/001-importar-miembros/checklists/seguridad.md que esta implementación deja verificados (sin tocar los que siguen pendientes)
 
 **Checkpoint**: Las tres historias funcionan. Puertas de calidad y commit si hubo cambios.
 
