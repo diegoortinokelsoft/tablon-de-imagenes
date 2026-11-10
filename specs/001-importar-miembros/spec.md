@@ -30,6 +30,11 @@
 - Q: ¿Qué ve el dueño cuando la importación no suma a nadie? → A: El aviso informativo (no de error) "No se sumó nadie nuevo", en el mismo lugar que "Se sumaron N personas". Vale para todos los casos de 0 (todos ya eran miembros, origen vaciado mientras tanto, mismo origen); el selector no anticipa el resultado.
 - Q: ¿Solo las competencias privadas sirven como origen, o también los participantes de una pública propia? → A: Solo privadas. Las públicas no aparecen en el selector y la acción las rechaza con `NOT_PRIVATE`.
 - Q: ¿Al tocar "Importar" se suman las personas en el momento, o antes aparece una confirmación? → A: Sin confirmación extra: elegir el origen en el diálogo y tocar "Importar" suma en el momento, igual que agregar a mano.
+- Q: ¿La importación suma a quien fue quitado del destino o salió por su cuenta? → A: Sí, igual que "Agregar persona" hoy: el sistema no guarda historial de bajas. Es una decisión explícita.
+- Q: ¿Una solicitud rechazada en el destino impide sumar a esa persona? → A: No, igual que `add_member`; la solicitud rechazada queda como está.
+- Q: ¿Qué errores lista FR-009? → A: Los mismos que la tabla de roles y el contrato: `NOT_ALLOWED`, `ROUND_NOT_FOUND`, `NOT_OWNER`, `ROUND_CLEANED` y `NOT_PRIVATE`.
+- Q: ¿Se cambia el mensaje de `NOT_PRIVATE` ("no hace falta pedir acceso") para la importación? → A: No; desde la UI no se llega a ese error (las públicas no tienen sección de miembros ni aparecen en el selector).
+- Q: ¿Se registra quién importó o hay un límite de personas por importación? → A: No; ambos quedan fuera de alcance.
 
 ## Escenarios de usuario y pruebas *(obligatoria)*
 
@@ -133,8 +138,12 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
   simultáneas en B no generan duplicados.
 - **Quien sale después**: un miembro importado puede salir o ser quitado como cualquier otro; la
   importación no se "recuerda".
-- **Solicitudes rechazadas**: una solicitud rechazada de alguien que se suma no cambia; la persona
-  igual queda como miembro.
+- **Personas quitadas o que salieron del destino**: si están entre los miembros del origen, se
+  suman de nuevo, igual que con "Agregar persona". El sistema no guarda historial de bajas; es una
+  decisión explícita, no un descuido.
+- **Solicitudes rechazadas**: una solicitud rechazada en el destino no impide sumar a esa persona,
+  igual que con `add_member`. La solicitud rechazada queda como está y la persona queda como
+  miembro.
 - **Todo o nada**: si la acción falla, no se agrega a nadie ni se aprueba ninguna solicitud.
 
 ## Requisitos *(obligatoria)*
@@ -147,7 +156,9 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
   dueño, sin limpiar, en cualquier estado, mostrando para cada una su nombre, su estado y su
   cantidad de miembros. Las que tienen 0 miembros aparecen deshabilitadas.
 - **FR-003**: Al confirmar, el sistema MUST agregar como miembros del destino, en una sola
-  operación, a todos los miembros del origen que no sean ya miembros del destino.
+  operación, a todos los miembros del origen que no sean ya miembros del destino, incluidos quienes
+  antes fueron quitados del destino o salieron de él, y quienes tengan una solicitud rechazada en
+  el destino.
 - **FR-004**: El sistema MUST NOT duplicar a quien ya es miembro del destino, ni modificar su
   membresía, su publicación o sus votos.
 - **FR-005**: Para cada persona sumada que tenga una solicitud de acceso pendiente en el destino,
@@ -160,8 +171,17 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 - **FR-008**: La lista de miembros y la de solicitudes del destino MUST actualizarse sin recargar,
   tanto para el dueño como para cualquier otra pantalla abierta que las muestre (contador de
   solicitudes en el hub y en el encabezado).
-- **FR-009**: Solo quien es dueño de ambas competencias MUST poder importar; cualquier otro caso
-  falla sin cambios con `NOT_OWNER`. El superadmin no tiene excepción.
+- **FR-009**: Solo quien es dueño de ambas competencias MUST poder importar, y solo entre
+  competencias privadas sin limpiar. El superadmin no tiene excepción. Cualquier otro caso falla
+  sin cambios con:
+  - `NOT_ALLOWED` si la cuenta no es del dominio;
+  - `ROUND_NOT_FOUND` si el destino o el origen no existen;
+  - `NOT_OWNER` si quien llama no es dueño del destino o del origen;
+  - `ROUND_CLEANED` si el destino o el origen están limpiados;
+  - `NOT_PRIVATE` si el destino o el origen son públicos.
+
+  El orden de verificación (primero el destino, después el origen) está en
+  [contracts/import_members.md](contracts/import_members.md).
 - **FR-010**: La importación MUST ser todo o nada: si falla, no se agrega a nadie ni se aprueba
   ninguna solicitud.
 - **FR-011**: El origen MUST quedar sin cambios.
@@ -201,7 +221,9 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
   recargar.
 - **Errores nuevos**: ninguno. Se usan los existentes (`NOT_ALLOWED`, `NOT_OWNER`,
   `NOT_PRIVATE`, `ROUND_NOT_FOUND`, `ROUND_CLEANED`). Origen igual al destino no es un error:
-  devuelve 0 sin cambios.
+  devuelve 0 sin cambios. El mensaje de `NOT_PRIVATE` ("Esta competencia es pública: no hace
+  falta pedir acceso") se mantiene: desde la UI no se llega a ese error, porque las públicas no
+  tienen sección "Miembros" ni aparecen en el selector.
 
 ### Entidades clave
 
@@ -225,6 +247,7 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 - Botón de confirmación: "Importar"; botón secundario: "Cancelar"
 - Resultado: "Se sumaron N personas" ("Se sumó 1 persona" en singular)
 - Resultado vacío (aviso informativo, no de error, en el mismo lugar que el resultado): "No se sumó nadie nuevo"
+
 ## Criterios de éxito *(obligatoria)*
 
 ### Resultados medibles
@@ -246,8 +269,8 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 - (Confirmado) Solo las competencias privadas tienen miembros, así que solo ellas sirven como origen. No se
   importan "participantes" (quienes publicaron o votaron) de una competencia pública.
 - El dueño no es miembro de sus competencias, así que la importación nunca lo agrega a sí mismo.
-- Se importan los miembros actuales del origen: quienes salieron o fueron quitados antes no se
-  suman, y las solicitudes pendientes o rechazadas del origen se ignoran.
+- Se importan los miembros actuales del origen: quienes salieron del origen o fueron quitados de
+  él no se suman, y las solicitudes pendientes o rechazadas del origen se ignoran.
 - (Confirmado) No hace falta pedir confirmación aparte de elegir el origen y tocar "Importar": la acción no
   borra nada y cualquier miembro sumado se puede quitar después.
 - Las personas sumadas no cuentan para el límite de 2 competencias activas (ese límite es solo de
@@ -263,3 +286,6 @@ origen ajeno y desde una cuenta de otro dominio; las tres fallan y no se agrega 
 - Sincronizar: si después el origen cambia sus miembros, el destino no se entera.
 - Avisar a las personas sumadas.
 - Importar solicitudes pendientes del origen o el enlace de invitación.
+- Registrar quién importó, cuándo o desde qué competencia (no hay auditoría de la importación).
+- Limitar la cantidad de personas por importación.
+- Guardar historial de bajas para evitar que se vuelva a sumar a quien fue quitado o salió.
