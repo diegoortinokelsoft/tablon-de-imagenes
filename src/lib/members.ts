@@ -55,3 +55,10 @@ export async function resolveAccessRequest(requestId: string, approve: boolean) 
   const { error } = await supabase.rpc('resolve_access_request', { p_request_id: requestId, p_approve: approve })
   if (error) throw error
 }
+
+/** Suma a esta privada los miembros de otra privada propia. Devuelve cuántas personas se sumaron. */
+export async function importMembers(roundId: string, sourceRoundId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('import_members', { p_round_id: roundId, p_source_round_id: sourceRoundId })
+  if (error) throw error
+  return data
+}

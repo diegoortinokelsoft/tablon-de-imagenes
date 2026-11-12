@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import type { RoundStatus } from '../lib/labels'
 import { getInviteToken } from '../lib/members'
 import { supabase } from '../lib/supabase'
 import { useSession } from './useSession'
@@ -84,6 +85,43 @@ export function useIsMember(roundId: string | undefined, enabled = true) {
         .eq('user_id', userId!)
       if (error) throw error
       return (count ?? 0) > 0
+    },
+  })
+}
+
+export interface ImportSource {
+  id: string
+  name: string
+  status: RoundStatus
+  memberCount: number
+}
+
+/**
+ * Otras privadas propias, sin limpiar, de las que se pueden importar miembros (con su cantidad).
+ * Clave bajo 'hub': el canal hub la relee cuando cambian los miembros de cualquier competencia.
+ */
+export function useImportSources(round: { id: string }, enabled: boolean) {
+  const { session } = useSession()
+  const userId = session?.user.id
+  return useQuery({
+    queryKey: ['hub', 'import_sources', round.id],
+    enabled: !!userId && enabled,
+    queryFn: async (): Promise<ImportSource[]> => {
+      const { data, error } = await supabase
+        .from('rounds')
+        .select('id, name, status, created_at, round_members(count)')
+        .eq('owner_id', userId!)
+        .eq('visibility', 'private')
+        .is('cleaned_at', null)
+        .neq('id', round.id)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data.map((row) => ({
+        id: row.id,
+        name: row.name,
+        status: row.status,
+        memberCount: row.round_members[0]?.count ?? 0,
+      }))
     },
   })
 }

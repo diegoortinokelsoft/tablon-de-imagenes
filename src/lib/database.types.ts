@@ -555,6 +555,10 @@ export type Database = {
           winner_title: string
         }[]
       }
+      import_members: {
+        Args: { p_round_id: string; p_source_round_id: string }
+        Returns: number
+      }
       is_admin: { Args: never; Returns: boolean }
       is_allowed_email: { Args: { p_email: string }; Returns: boolean }
       is_allowed_user: { Args: never; Returns: boolean }

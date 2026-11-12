@@ -96,6 +96,7 @@ Las migraciones están en `supabase/migrations/` y son la única forma de cambia
 | `0006_storage.sql` | Bucket privado `submissions` y sus políticas |
 | `0007_realtime.sql` | Tablas en la publicación `supabase_realtime` |
 | `0008_v2_schema.sql` a `0013_v2_realtime.sql` | v2: competencias múltiples con dueño y visibilidad, miembros, invitaciones, solicitudes, archivo, políticas por competencia y Realtime (detalle en [docs/supabase.md](docs/supabase.md)) |
+| `0014_import_members.sql` | Importar los miembros de otra competencia privada propia |
 
 Para aplicar migraciones nuevas, con la CLI vinculada:
 
@@ -106,11 +107,11 @@ npx supabase db push --dry-run   # revisar qué se va a aplicar
 npx supabase db push
 ```
 
-El historial remoto usa las mismas versiones que los archivos (`0001` a `0013`). Si alguna vez se aplica una migración con el MCP de Supabase, el MCP la registra con otra versión: hay que alinearla con `npx supabase migration repair`.
+El historial remoto usa las mismas versiones que los archivos (`0001` a `0014`). Si alguna vez se aplica una migración con el MCP de Supabase, el MCP la registra con otra versión: hay que alinearla con `npx supabase migration repair`.
 
 ### Pruebas de las reglas
 
-`supabase/tests/rules.sql` prueba las reglas (217 casos) simulando al superadmin, dueños, miembros, usuarios sin acceso, un email de otro dominio y `anon`. Corre dentro de una transacción con `rollback`, así que no deja datos:
+`supabase/tests/rules.sql` prueba las reglas (246 casos) simulando al superadmin, dueños, miembros, usuarios sin acceso, un email de otro dominio y `anon`. Corre dentro de una transacción con `rollback`, así que no deja datos:
 
 ```bash
 npx supabase db query --linked -f supabase/tests/rules.sql -o json
@@ -121,7 +122,7 @@ Todos los casos deben dar `ok = true`.
 ## Cómo se usa
 
 1. En el hub (`/`), **Crear competencia**: nombre y visibilidad (pública para todo Kelsoft, o privada). Cada persona puede tener hasta 2 activas.
-2. En **Gestionar**, quien la creó la **Abre**. En una privada, comparte el enlace de invitación, agrega personas o aprueba solicitudes de acceso.
+2. En **Gestionar**, quien la creó la **Abre**. En una privada, comparte el enlace de invitación, agrega personas, importa los miembros de otra privada suya o aprueba solicitudes de acceso.
 3. Cada participante publica una imagen (arrastrar, elegir o pegar con Ctrl+V) y reparte sus 3 votos.
 4. Quien la creó la **Cierra** (todos ven el ranking; si fue antes de tiempo, **Reabrir**), elige al ganador (aunque haya empate) y pulsa **Finalizar competencia**.
 5. Con el ganador a la vista, **Compartir resultado** copia una imagen para pegar en Slack.
