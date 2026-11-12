@@ -166,6 +166,7 @@ El superadmin **no** gestiona estados ni miembros de competencias ajenas (`NOT_O
 | `regenerate_invite_link(p_round_id)` | Dueño | token nuevo | Solo privadas. El anterior deja de funcionar. |
 | `join_with_invite(p_token)` | Usuario | id de la competencia | `p_token` es texto (viene de la URL); si no es un uuid o no existe, `INVALID_INVITE`. Si ya tenía acceso, solo devuelve el id. Aprueba su solicitud pendiente, si la había. |
 | `add_member(p_round_id, p_user_id)` | Dueño | — | Solo privadas; perfil existente (`USER_NOT_FOUND`); sin acceso previo (`ALREADY_HAS_ACCESS`). Aprueba su solicitud pendiente. |
+| `import_members(p_round_id, p_source_round_id)` ([0014](../supabase/migrations/0014_import_members.sql)) | Dueño de ambas (sin excepción para el superadmin) | cantidad de personas sumadas | Primero el destino, después el origen: existe (`ROUND_NOT_FOUND`), es suyo (`NOT_OWNER`), sin limpiar (`ROUND_CLEANED`), privado (`NOT_PRIVATE`). Suma (`added`) a los miembros del origen que faltan, con `on conflict do nothing`, y aprueba sus solicitudes pendientes en el destino. Origen = destino devuelve 0. El origen no cambia. |
 | `remove_member(p_round_id, p_user_id)` | Dueño | ruta o null | Es miembro (`NOT_MEMBER`). Borra su publicación (los votos recibidos vuelven) y sus votos. |
 | `leave_round(p_round_id)` | Miembro | ruta o null | Igual, sobre sí mismo. El dueño no es miembro. |
 | `request_access(p_round_id)` | Usuario | id | Solo privadas (`NOT_PRIVATE`), sin limpiar, sin acceso (`ALREADY_HAS_ACCESS`), sin otra pendiente (`REQUEST_PENDING`) |
@@ -202,6 +203,7 @@ Cada código tiene su mensaje en español en `src/lib/errors.ts`. **Un código n
 - Las RPC de participación leen la competencia con `for share` y las del dueño con `for update`. Así, cerrar la competencia espera a que terminen los votos en curso, y nadie publica ni vota "justo" mientras se cierra.
 - `cast_vote` toma `for share` sobre la publicación y `replace_submission_image` toma `for update`. Así, un voto no sobrevive a un reemplazo de imagen que ocurre al mismo tiempo.
 - `create_round` toma un lock por usuario para que dos pedidos simultáneos no salten el límite de 2.
+- `import_members` toma `for update` sobre el destino y lee el origen sin bloqueo (dos importaciones cruzadas no se traban). La clave primaria `(round_id, user_id)` con `on conflict do nothing` evita duplicados aun con importaciones o entradas por enlace simultáneas.
 
 ## 6. Storage
 
@@ -250,6 +252,7 @@ Si la limpieza de Storage falla, la base ya quedó bien y solo queda un archivo 
 | `0011_v2_admin.sql` | RPC del superadmin (archivo y limpieza) |
 | `0012_v2_storage.sql` | Políticas de Storage por competencia |
 | `0013_v2_realtime.sql` | `round_members` y `access_requests` en Realtime |
+| `0014_import_members.sql` | RPC `import_members` (importar miembros de otra privada propia) |
 
 **Reglas:**
 - Nunca se cambia la base fuera de una migración.
@@ -275,7 +278,7 @@ El procedimiento completo para un cambio de base está en la skill [`.claude/ski
 
 ## 9. Pruebas de reglas
 
-[supabase/tests/rules.sql](../supabase/tests/rules.sql) tiene **217 casos** que corren contra la base real dentro de una transacción con `rollback` (no deja datos).
+[supabase/tests/rules.sql](../supabase/tests/rules.sql) tiene **246 casos** que corren contra la base real dentro de una transacción con `rollback` (no deja datos).
 
 ```bash
 npx supabase db query --linked -f supabase/tests/rules.sql -o json
@@ -284,6 +287,7 @@ npx supabase db query --linked -f supabase/tests/rules.sql -o json
 Cómo está armado:
 - Crea usuarios ficticios en `auth.users` (ana, beto, carla, dani). Para el superadmin reutiliza el usuario real si ya existe, porque el email es único.
 - Ana crea sus propias competencias (una pública y una privada), así las pruebas no dependen de los datos reales.
+- La sección "Importar miembros" usa competencias de beto (así no choca con el límite de 2 de ana); la pública y la limpiada de beto se crean como postgres con `pg_temp.run_sql`.
 - `pg_temp.run_as(email, uid, sql)` simula a un usuario con `set local role authenticated` y `request.jwt.claims`, ejecuta el SQL y devuelve `OK[:valor]` o el mensaje de error. `pg_temp.run_as_anon` hace lo mismo para `anon`.
 - `pg_temp.upload` y `pg_temp.remove` suben y borran en Storage como un usuario (`remove` devuelve `OK:1` o `OK:0`).
 - `pg_temp.expect(caso, esperado, obtenido)` registra cada caso; coincide si es igual o si `obtenido` empieza con `esperado`.

@@ -37,3 +37,14 @@ export function initials(name: string): string {
   const letters = parts.length > 1 ? [parts[0]![0], parts[parts.length - 1]![0]] : [parts[0]?.[0]]
   return letters.filter(Boolean).join('').toUpperCase() || '?'
 }
+
+/** "N miembros", con "1 miembro" en singular. */
+export function memberCountLabel(count: number): string {
+  return count === 1 ? '1 miembro' : `${count} miembros`
+}
+
+/** Resultado de importar miembros de otra competencia. */
+export function importedMembersMessage(count: number): string {
+  if (count === 0) return 'No se sumó nadie nuevo'
+  return count === 1 ? 'Se sumó 1 persona' : `Se sumaron ${count} personas`
+}

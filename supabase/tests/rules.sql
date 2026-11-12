@@ -137,6 +137,13 @@ declare
   v_ana_priv_sub uuid;
   v_beto_priv_sub uuid;
   v_out text;
+  v_imp_a uuid;      -- privada de beto (origen): carla y dani
+  v_imp_b uuid;      -- privada de beto (destino): carla; dani y ana con solicitud pendiente
+  v_imp_pub uuid;    -- pública de beto (como postgres, para saltar el límite de 2)
+  v_imp_clean uuid;  -- privada limpiada de beto (como postgres)
+  v_imp_carla text;  -- source y joined_at de carla en B antes de importar
+  v_imp_dani_req uuid;
+  v_imp_ana_req uuid;
 begin
   -- ===== Preparación: usuarios ficticios (el trigger crea sus perfiles) =====
   insert into auth.users (id, email, aud, role, raw_user_meta_data)
@@ -696,6 +703,103 @@ begin
     pg_temp.remove(e_ana, c_ana, v_extra_carla_path));
   perform pg_temp.expect('Borrar competencia: libera el cupo', 'OK:',
     pg_temp.run_as(e_ana, c_ana, 'select public.create_round(''Otra extra'', ''public'')'));
+
+  -- ===== Importar miembros =====
+  -- Competencias de beto (no tiene ninguna, así no choca con el límite de 2 de ana).
+  -- La concurrencia (dos importaciones simultáneas) no se prueba acá, que corre en una sola sesión:
+  -- la garantiza la clave primaria (round_id, user_id) de round_members con `on conflict do nothing`.
+  v_imp_a := substr(pg_temp.run_as(e_beto, c_beto,
+    'select public.create_round(''Importar A'', ''private'')'), 4)::uuid;
+  v_imp_b := substr(pg_temp.run_as(e_beto, c_beto,
+    'select public.create_round(''Importar B'', ''private'')'), 4)::uuid;
+  perform pg_temp.run_as(e_beto, c_beto, format('select public.add_member(%L, %L)', v_imp_a, c_carla));
+  perform pg_temp.run_as(e_beto, c_beto, format('select public.add_member(%L, %L)', v_imp_a, c_dani));
+  perform pg_temp.run_as(e_beto, c_beto, format('select public.add_member(%L, %L)', v_imp_b, c_carla));
+  v_imp_dani_req := substr(pg_temp.run_as(e_dani, c_dani, format('select public.request_access(%L)', v_imp_b)), 4)::uuid;
+  v_imp_ana_req := substr(pg_temp.run_as(e_ana, c_ana, format('select public.request_access(%L)', v_imp_b)), 4)::uuid;
+  v_imp_pub := substr(pg_temp.run_sql(format(
+    'insert into public.rounds (name, owner_id, visibility) values (''Importar pública'', %L, ''public'') returning id',
+    c_beto)), 4)::uuid;
+  v_imp_clean := substr(pg_temp.run_sql(format(
+    'insert into public.rounds (name, owner_id, visibility, status, cleaned_at) values (''Importar limpiada'', %L, ''private'', ''finalized'', now()) returning id',
+    c_beto)), 4)::uuid;
+  perform pg_temp.expect('Importar: preparación (A con 2, B con 1, 2 solicitudes pendientes en B)', '2/1/2',
+    (select (select count(*) from public.round_members where round_id = v_imp_a) || '/' ||
+            (select count(*) from public.round_members where round_id = v_imp_b) || '/' ||
+            (select count(*) from public.access_requests where round_id = v_imp_b and status = 'pending')));
+
+  -- Errores
+  perform pg_temp.expect('Importar: anon no puede', 'permission denied',
+    pg_temp.run_as_anon(format('select public.import_members(%L, %L)', v_imp_b, v_imp_a)));
+  perform pg_temp.expect('Importar: otro dominio', 'NOT_ALLOWED',
+    pg_temp.run_as(e_intruso, c_intruso, format('select public.import_members(%L, %L)', v_imp_b, v_imp_a)));
+  perform pg_temp.expect('Importar: un miembro no dueño', 'NOT_OWNER',
+    pg_temp.run_as(e_carla, c_carla, format('select public.import_members(%L, %L)', v_imp_b, v_imp_a)));
+  perform pg_temp.expect('Importar: el superadmin en una ajena', 'NOT_OWNER',
+    pg_temp.run_as(c_admin_email, c_admin, format('select public.import_members(%L, %L)', v_imp_b, v_imp_a)));
+  perform pg_temp.expect('Importar: desde una privada ajena', 'NOT_OWNER',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_b, v_priv)));
+  perform pg_temp.expect('Importar: destino inexistente', 'ROUND_NOT_FOUND',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', gen_random_uuid(), v_imp_a)));
+  perform pg_temp.expect('Importar: origen inexistente', 'ROUND_NOT_FOUND',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_b, gen_random_uuid())));
+  perform pg_temp.expect('Importar: destino público', 'NOT_PRIVATE',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_pub, v_imp_a)));
+  perform pg_temp.expect('Importar: origen público', 'NOT_PRIVATE',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_b, v_imp_pub)));
+  perform pg_temp.expect('Importar: destino limpiado', 'ROUND_CLEANED',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_clean, v_imp_a)));
+  perform pg_temp.expect('Importar: origen limpiado', 'ROUND_CLEANED',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_b, v_imp_clean)));
+  perform pg_temp.expect('Importar: los errores no cambian nada (B solo con carla, dani pendiente)', 'Carla/pending',
+    (select string_agg(p.full_name, ',') from public.round_members m join public.profiles p on p.id = m.user_id
+      where m.round_id = v_imp_b) || '/' ||
+    (select status::text from public.access_requests where id = v_imp_dani_req));
+
+  -- Camino feliz. Carla entra a B "por enlace" y hace un día: si la RPC la sobrescribiera
+  -- (source = 'added', joined_at = now()), el caso de abajo lo detecta.
+  perform pg_temp.run_sql(format(
+    'update public.round_members set source = ''invite_link'', joined_at = now() - interval ''1 day'' where round_id = %L and user_id = %L returning 1',
+    v_imp_b, c_carla));
+  v_imp_carla :=(select source || '/' || joined_at from public.round_members
+                   where round_id = v_imp_b and user_id = c_carla);
+  perform pg_temp.expect('Importar: A → B suma a dani', 'OK:1',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_b, v_imp_a)));
+  perform pg_temp.expect('Importar: B tiene a carla y dani, una vez cada uno', '2/2',
+    (select count(*) || '/' || count(distinct user_id) from public.round_members
+      where round_id = v_imp_b and user_id in (c_carla, c_dani)));
+  perform pg_temp.expect('Importar: carla (ya miembro) no cambia', v_imp_carla,
+    (select source || '/' || joined_at from public.round_members where round_id = v_imp_b and user_id = c_carla));
+  perform pg_temp.expect('Importar: dani queda como agregado', 'added',
+    (select source::text from public.round_members where round_id = v_imp_b and user_id = c_dani));
+  perform pg_temp.expect('Importar: la solicitud de dani queda aprobada', 'approved/true',
+    (select status || '/' || (resolved_at is not null) from public.access_requests where id = v_imp_dani_req));
+  perform pg_temp.expect('Importar: quien no está en el origen sigue pendiente y sin acceso', 'pending/0',
+    (select status::text from public.access_requests where id = v_imp_ana_req) || '/' ||
+    (select count(*) from public.round_members where round_id = v_imp_b and user_id = c_ana));
+  perform pg_temp.expect('Importar: el origen no cambia', '2',
+    (select count(*)::text from public.round_members where round_id = v_imp_a));
+  perform pg_temp.expect('Importar: repetir no suma a nadie', 'OK:0',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_b, v_imp_a)));
+  perform pg_temp.expect('Importar: origen = destino no suma a nadie', 'OK:0',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_a, v_imp_a)));
+
+  -- Quitados y rechazados vuelven a sumarse si están en el origen.
+  perform pg_temp.expect('Importar: beto quita a dani de B', 'OK',
+    pg_temp.run_as(e_beto, c_beto, format('select public.remove_member(%L, %L)', v_imp_b, c_dani)));
+  perform pg_temp.expect('Importar: beto rechaza la solicitud de ana en B', 'OK',
+    pg_temp.run_as(e_beto, c_beto, format('select public.resolve_access_request(%L, false)', v_imp_ana_req)));
+  perform pg_temp.expect('Importar: beto agrega a ana en A', 'OK',
+    pg_temp.run_as(e_beto, c_beto, format('select public.add_member(%L, %L)', v_imp_a, c_ana)));
+  perform pg_temp.expect('Importar: A → B suma a dani (quitado) y ana (rechazada)', 'OK:2',
+    pg_temp.run_as(e_beto, c_beto, format('select public.import_members(%L, %L)', v_imp_b, v_imp_a)));
+  perform pg_temp.expect('Importar: dani y ana son miembros agregados de B', 'added,added',
+    (select string_agg(source::text, ',') from public.round_members
+      where round_id = v_imp_b and user_id in (c_dani, c_ana)));
+  perform pg_temp.expect('Importar: la solicitud rechazada de ana no cambia', 'rejected',
+    (select status::text from public.access_requests where id = v_imp_ana_req));
+  perform pg_temp.expect('Importar: B queda con 3 miembros', '3',
+    (select count(*)::text from public.round_members where round_id = v_imp_b));
 
   -- ===== Archivo y limpieza =====
   perform pg_temp.expect('Archivo: un usuario no lista para archivar', 'NOT_ADMIN',
